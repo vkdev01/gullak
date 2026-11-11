@@ -5,7 +5,7 @@ FastAPI + SQLAlchemy 2 + PostgreSQL. All business logic lives here; the web app 
 ## Run locally
 
 ```bash
-cd backend
+cd api
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # or set DATABASE_URL to sqlite:///./gullak.db for a quick run
