@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, money, type Account } from "@/lib/api";
+import { api, type Account } from "@/lib/api";
+import { money } from "@/lib/format";
 import s from "./page.module.scss";
 
 export default function AccountsPage() {

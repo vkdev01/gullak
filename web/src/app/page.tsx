@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api, isDemoMode, money, type Account, type Category, type Summary, type Txn } from "@/lib/api";
+import { api, isDemoMode, type Account, type Category, type Summary, type Txn } from "@/lib/api";
+import { money } from "@/lib/format";
 import s from "./page.module.scss";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
