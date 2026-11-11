@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, isDemoMode, setToken } from "@/lib/api";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 import s from "./page.module.scss";
 
 export default function LoginPage() {
@@ -47,36 +49,35 @@ export default function LoginPage() {
           </p>
 
           {mode === "signup" && (
-            <div className="field">
-              <label>Your name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
+            <Field label="Your name" value={name} onChange={(e) => setName(e.target.value)} required />
           )}
-          <div className="field">
-            <label>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
-          </div>
+          <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Field
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
 
-          <button className="btn" type="submit" style={{ width: "100%" }}>
+          <Button type="submit" block>
             {mode === "login" ? "Sign in" : "Create account"}
-          </button>
+          </Button>
 
           {isDemoMode() && (
-            <button
+            <Button
               type="button"
-              className="btn btn--ghost"
-              style={{ width: "100%", marginTop: 8 }}
+              variant="ghost"
+              block
+              style={{ marginTop: 8 }}
               onClick={() => {
                 setToken("demo-token");
                 router.push("/");
               }}
             >
               Continue in demo mode
-            </button>
+            </Button>
           )}
 
           {error && <p className={s.err}>{error}</p>}

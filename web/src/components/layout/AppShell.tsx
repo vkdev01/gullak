@@ -3,15 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isDemoMode } from "@/lib/api";
-import s from "./Shell.module.scss";
+import { navItems, site } from "@/config/site";
+import s from "./AppShell.module.scss";
 
-const NAV = [
-  { href: "/", label: "Ledger" },
-  { href: "/accounts/", label: "Accounts" },
-  { href: "/login/", label: "Sign in" },
-];
-
-export default function Shell({ children }: { children: React.ReactNode }) {
+export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const demo = isDemoMode();
 
@@ -20,10 +15,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <header className={s.top}>
         <div className={s.inner}>
           <Link href="/" className={s.mark}>
-            <i>G</i> gullak
+            <i>G</i> {site.name.toLowerCase()}
           </Link>
           <nav className={s.nav}>
-            {NAV.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

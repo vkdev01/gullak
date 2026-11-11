@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type Account } from "@/lib/api";
 import { money } from "@/lib/format";
+import Card from "@/components/ui/Card";
 import s from "./page.module.scss";
 
 export default function AccountsPage() {
@@ -19,7 +20,7 @@ export default function AccountsPage() {
       <h2 className={s.h}>Accounts</h2>
       <p className={s.sub}>Balances are computed from the opening balance plus every transaction.</p>
 
-      <div className={s.card}>
+      <Card className={s.card}>
         <div className={s.rowTotal}>
           <b>Net across accounts</b>
           <span className="num">{money(total)}</span>
@@ -37,7 +38,7 @@ export default function AccountsPage() {
             <span className="num">{money(a.balance)}</span>
           </div>
         ))}
-      </div>
+      </Card>
     </main>
   );
 }

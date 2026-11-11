@@ -1,0 +1,30 @@
+@use 'tokens' as t;
+
+.field {
+  margin-bottom: 13px;
+
+  label {
+    display: block;
+    font-family: t.$mono;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: t.$dim;
+    margin-bottom: 5px;
+  }
+
+  input {
+    width: 100%;
+    background: t.$card;
+    border: 1px solid t.$line;
+    border-radius: t.$radius-sm;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+
+    &:focus {
+      border-color: t.$green;
+      box-shadow: 0 0 0 3px rgba(31, 111, 92, 0.1);
+    }
+  }
+}

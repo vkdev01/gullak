@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "@/styles/globals.scss";
-import Shell from "@/components/Shell";
+import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
   title: "Gullak — MVP 0",
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Shell>{children}</Shell>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

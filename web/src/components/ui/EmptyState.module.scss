@@ -1,0 +1,14 @@
+@use 'tokens' as t;
+
+.empty {
+  padding: 44px 20px;
+  text-align: center;
+
+  h3 { font-size: 15px; margin-bottom: 6px; }
+  p {
+    color: t.$dim;
+    font-size: 13px;
+    max-width: 36ch;
+    margin: 0 auto 16px;
+  }
+}

@@ -1,0 +1,31 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.stat {
+  @include m.card;
+  padding: 16px 18px;
+}
+
+.label {
+  font-family: t.$mono;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: t.$dim;
+}
+
+.value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.negative { color: t.$clay; }
+
+.foot {
+  font-size: 11.5px;
+  color: t.$dim;
+  margin-top: 3px;
+}
