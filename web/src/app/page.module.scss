@@ -1,0 +1,46 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 26px 22px 90px;
+
+  @include m.mq(md) { padding: 18px 14px 96px; }
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+
+  @include m.mq(md) {
+    grid-template-columns: 1fr 1fr;
+
+    > :first-child { grid-column: 1 / -1; }
+  }
+}
+
+.errorTitle {
+  font-size: 22px;
+  margin-bottom: 8px;
+  margin-top: 12vh;
+}
+
+.hint { margin-top: 12px; }
+
+.note {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11.5px;
+  color: t.$dim;
+
+  code {
+    font-family: t.$mono;
+    font-size: 11px;
+    background: t.$sage-100;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+}

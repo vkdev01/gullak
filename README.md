@@ -6,49 +6,65 @@ categories, transactions and the screens to work with them, before any agent exi
 **Live demo:** https://vkdev01.github.io/gullak/ — the Next.js app exported as static files and
 running entirely in your browser (no server, no signup).
 
-![stack](https://img.shields.io/badge/Next.js%2015-App%20Router-black) ![stack](https://img.shields.io/badge/FastAPI-Python%203.12-05998b) ![stack](https://img.shields.io/badge/PostgreSQL-16-336791)
-
-## What is in here
+## Layout
 
 ```
-.
-├── app/               Next.js 15 App Router — ledger, accounts, login
-├── components/        Shell (nav) and shared chrome
-├── lib/               api client · demo transport · types
-├── styles/            Sage design tokens, mixins, globals (SCSS)
-├── backend/           FastAPI + SQLAlchemy 2 + Postgres schema, seed and tests
-├── prototype/         single-file HTML prototype of the same screens
-└── .github/workflows/ Pages deployment (static export)
+gullak/
+├── web/                    the Next.js app — everything front end lives here
+│   ├── src/
+│   │   ├── app/            routes only (App Router)
+│   │   ├── components/     layout/ · ui/ · ledger/ · accounts/ · auth/
+│   │   ├── hooks/          data and UI state, one hook per concern
+│   │   ├── lib/            api/ (client, demo, types) · format · parse
+│   │   ├── styles/         tokens, mixins, globals
+│   │   └── config/         site metadata, navigation
+│   ├── next.config.mjs     static export + basePath
+│   └── package.json
+├── api/                    the FastAPI service
+│   ├── app/                main, models, schemas, security, routers/, seed
+│   ├── migrations/         Postgres schema, including row-level security
+│   └── tests/              smoke test = the MVP 0 exit criteria
+├── prototype/              single-file HTML prototype of the same screens
+├── docker-compose.yml      postgres + api + web
+└── .github/workflows/      pages.yml (deploy) · ci.yml (build + tests)
 ```
 
-## Two ways to run it
+Two rules keep this maintainable: **routes compose, they do not implement** — anything with logic
+lives in `components/`, `hooks/` or `lib/`; and **the API is the only thing that touches data** —
+the web app renders what it is given.
 
-**1. Static, no backend.** This is what GitHub Pages serves. With `NEXT_PUBLIC_API_URL` unset,
-`lib/api.ts` swaps its transport for `lib/demo.ts`, a localStorage-backed implementation of the
-same contract, so the exported site is fully usable on its own.
+## Run it
+
+**Static, no backend** (what GitHub Pages serves):
 
 ```bash
-npm install
-npm run build      # emits out/ — open out/index.html or serve it
+cd web && npm install && npm run build   # emits web/out
 ```
 
-**2. With the real backend.**
+With `NEXT_PUBLIC_API_URL` unset, `lib/api` swaps its HTTP transport for `lib/api/demo.ts`, a
+localStorage implementation of the same contract, so the exported site works on its own.
+
+**Full stack:**
 
 ```bash
-docker compose up                     # postgres + api + web
-# or
-cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload
-NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+docker compose up        # db :5432 · api :8000 · web :3000
 ```
 
-## The stack, and why
+Or run the halves directly:
 
-| Layer | Choice | Note |
-| --- | --- | --- |
-| Web | Next.js 15, App Router, TypeScript | `output: "export"` so it can be hosted anywhere static |
-| Styling | SCSS modules + a token layer | `styles/_tokens.scss` is the only place a hex value lives |
-| API | Python 3.12, FastAPI, SQLAlchemy 2 | all business logic; the web app only renders |
-| Data | PostgreSQL | money as integer paise, row-level security per household |
+```bash
+cd api && pip install -r requirements.txt && uvicorn app.main:app --reload
+cd web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+```
+
+## Tests
+
+```bash
+cd api && pip install pytest httpx && pytest -q tests     # tenant isolation + ledger maths
+cd web && npm run build                                  # typecheck + static export
+```
+
+CI runs both on every push and pull request.
 
 ## The MVP 0 exit test
 
@@ -56,22 +72,29 @@ NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 > household's rows.
 
 The second half is enforced three times over: the API derives the household from the caller's
-membership rather than the request, every query filters on it, and `backend/migrations/001_init.sql`
+membership rather than from the request, every query filters on it, and `api/migrations/001_init.sql`
 enables row-level security so the database refuses cross-tenant reads even if application code
-forgets. `backend/tests/test_smoke.py` asserts it.
+forgets.
+
+## Working on this repo
+
+Branch per feature, merge to `main` when the work is done and CI is green:
 
 ```bash
-cd backend && pip install pytest httpx && pytest -q tests
+git checkout -b feature/statement-import
+# …commits…
+git push -u origin feature/statement-import
+gh pr create --fill          # then merge, or merge locally with --no-ff
 ```
+
+Commit messages follow `type(scope): summary` — `feat(ledger): …`, `fix(api): …`,
+`refactor(web): …`, `docs: …`. One logical change per commit; the body explains why, not what.
 
 ## Deploying
 
-Pushing to `main` runs `.github/workflows/pages.yml`, which builds the static export and publishes
-it to GitHub Pages. For a project page the base path is injected automatically by
-`actions/configure-pages`, so assets resolve under `/<repo>/`.
-
-To host somewhere else, run `npm run build` and serve `out/`. To point the exported app at a live
-API, set `NEXT_PUBLIC_API_URL` at build time.
+Push to `main` → `pages.yml` builds `web/` as a static export with the base path injected by
+`actions/configure-pages` and publishes it to Pages. To host elsewhere, run `npm run build` in
+`web/` and serve `web/out/`; set `NEXT_PUBLIC_API_URL` at build time to point the app at a live API.
 
 ## Deliberately not in MVP 0
 

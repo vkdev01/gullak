@@ -1,0 +1,36 @@
+# Local stack: Postgres, the FastAPI service, and the Next.js app.
+# The web container talks to the API on http://localhost:8000 from the browser.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gullak
+      POSTGRES_PASSWORD: gullak
+      POSTGRES_DB: gullak
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg://gullak:gullak@db:5432/gullak
+      SECRET_KEY: dev-only-change-me
+      WEB_ORIGIN: http://localhost:3000
+    ports: ["8000:8000"]
+    depends_on: [db]
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    volumes: ["./web:/app"]
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

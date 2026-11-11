@@ -1,7 +1,9 @@
-# next
+# dependencies
 node_modules/
-.next/
-out/
+
+# next
+web/.next/
+web/out/
 next-env.d.ts
 
 # python
@@ -15,5 +17,5 @@ __pycache__/
 .env.local
 .env*.local
 
-# os
+# os / editors
 .DS_Store

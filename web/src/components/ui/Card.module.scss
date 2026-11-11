@@ -1,0 +1,10 @@
+@use 'tokens' as t;
+
+.card {
+  background: t.$card;
+  border: 1px solid t.$line;
+  border-radius: t.$radius;
+  box-shadow: t.$shadow;
+}
+
+.padded { padding: 20px; }

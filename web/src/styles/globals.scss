@@ -1,0 +1,39 @@
+@use 'tokens' as t;
+
+:root {
+  --pg: #{t.$sage-50};
+  --card: #{t.$card};
+  --ink: #{t.$ink};
+  --dim: #{t.$dim};
+  --line: #{t.$line};
+  --green: #{t.$green};
+  --clay: #{t.$clay};
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--pg);
+  color: var(--ink);
+  font-family: t.$sans;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+input, select { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+
+// Small shared helpers. Anything with structure lives in a component module.
+.num { font-family: t.$mono; font-variant-numeric: tabular-nums; }
+.muted { color: t.$dim; }
+.small { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
