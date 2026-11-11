@@ -1,0 +1,19 @@
+# next
+node_modules/
+.next/
+out/
+next-env.d.ts
+
+# python
+__pycache__/
+*.pyc
+.venv/
+*.db
+
+# env
+.env
+.env.local
+.env*.local
+
+# os
+.DS_Store

@@ -1,0 +1,28 @@
+// Sage design tokens. One source of truth for web (and mirrored into the
+// React Native theme later). Never hardcode a hex value in a component.
+
+$sage-50:  #EDF3EE;   // page canvas
+$sage-100: #E6EEE7;   // sunken
+$card:     #FFFDF9;   // card surface
+$line:     #E4EBE4;   // hairline — always paired with a shadow
+$line-soft:#EEF3EE;
+$ink:      #17251F;
+$dim:      #6E8078;
+$green:    #1F6F5C;   // primary
+$green-soft:#E4EFE9;
+$clay:     #C77B5A;   // secondary
+$clay-soft:#F7E9E1;
+$butter:   #D9BE72;   // tertiary
+$butter-soft:#F8F0DA;
+$danger:   #A8452E;
+
+$radius:   18px;
+$radius-sm:11px;
+$shadow:   0 10px 26px rgba(30, 60, 45, 0.07);
+
+$sans: 'IBM Plex Sans', system-ui, sans-serif;
+$mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+$bp-sm: 560px;
+$bp-md: 820px;
+$bp-lg: 1080px;

@@ -1,0 +1,23 @@
+{
+  "name": "gullak",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gullak — an AI-agentic savings platform. MVP 0: the ledger.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx serve out",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.1.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.1",
+    "@types/react": "19.0.1",
+    "sass": "1.83.0",
+    "typescript": "5.7.2"
+  }
+}

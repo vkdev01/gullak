@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gullak — MVP 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pg:#EDF3EE; --card:#FFFDF9; --sunken:#E6EEE7;
+  --ink:#17251F; --dim:#6E8078; --line:#E4EBE4; --line2:#EEF3EE;
+  --green:#1F6F5C; --green-soft:#E4EFE9; --clay:#C77B5A; --clay-soft:#F7E9E1;
+  --butter:#D9BE72; --butter-soft:#F8F0DA; --danger:#A8452E;
+  --r:18px; --shadow:0 10px 26px rgba(30,60,45,.07);
+  --sans:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--pg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,select,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.015em}
+.hide{display:none!important}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- auth ---------- */
+.auth{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
+.auth__brand{background:linear-gradient(150deg,#1F6F5C,#2E8C74 60%,#4FA98F);color:#fff;padding:clamp(28px,4vw,56px);display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.auth__brand::after{content:"";position:absolute;right:-80px;bottom:-120px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%)}
+.auth__brand h1{font-size:clamp(30px,3.6vw,44px);line-height:1.05;margin-top:auto;font-weight:500}
+.auth__brand p{color:rgba(255,255,255,.8);max-width:34ch;margin:14px 0 0;font-size:14.5px}
+.auth__brand ul{list-style:none;padding:0;margin:26px 0 0;display:flex;flex-direction:column;gap:9px}
+.auth__brand li{font-size:13px;color:rgba(255,255,255,.86);padding-left:18px;position:relative}
+.auth__brand li::before{content:"";position:absolute;left:0;top:.6em;width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.7)}
+.auth__mark{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.9}
+.auth__mark i{width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-size:13px;font-weight:600}
+.auth__form{display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,48px)}
+.auth__box{width:100%;max-width:360px}
+.auth__box h2{font-size:24px;margin-bottom:4px}
+.auth__box .sub{color:var(--dim);font-size:13px;margin-bottom:22px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.field input,.field select{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;outline:none;transition:border-color .12s,box-shadow .12s}
+.field input:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(31,111,92,.10)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--green);color:#fff;border-radius:11px;padding:10px 16px;font-size:13.5px;font-weight:500;transition:transform .12s,background .12s}
+.btn:hover{background:#1A5F4F}
+.btn:active{transform:scale(.985)}
+.btn--block{width:100%;margin-top:6px}
+.btn--ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.btn--ghost:hover{background:var(--sunken)}
+.btn--sm{padding:6px 11px;font-size:12px;border-radius:9px}
+.err{color:var(--danger);font-size:12.5px;min-height:18px;margin-top:8px}
+.switch{font-size:12.5px;color:var(--dim);margin-top:16px;text-align:center}
+.switch button{color:var(--green);font-weight:500;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:820px){.auth{grid-template-columns:1fr}.auth__brand{display:none}}
+
+/* ---------- shell ---------- */
+.top{position:sticky;top:0;z-index:40;background:rgba(237,243,238,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top__in{max-width:1080px;margin:0 auto;padding:0 22px;height:58px;display:flex;align-items:center;gap:16px}
+.wordmark{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:5px 11px;box-shadow:var(--shadow);font-weight:600;font-size:13px;letter-spacing:-.01em}
+.wordmark i{width:19px;height:19px;border-radius:6px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-style:normal}
+.nav{display:flex;gap:2px}
+.nav button{padding:7px 12px;border-radius:99px;font-size:13px;color:var(--dim);transition:background .12s,color .12s}
+.nav button:hover{color:var(--ink)}
+.nav button.on{background:var(--card);border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow);font-weight:500}
+.top__right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--clay),var(--butter));display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:#fff;border:2px solid var(--card)}
+.page{max-width:1080px;margin:0 auto;padding:26px 22px 90px}
+
+/* ---------- shared ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card--pad{padding:20px}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.hd h2{font-size:17px}
+.hd .sub{font-size:12px;color:var(--dim);margin-top:2px}
+.pill{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:99px;padding:3px 9px;color:var(--dim);background:var(--card)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:99px;padding:2px 9px;background:var(--sunken);color:var(--dim);white-space:nowrap}
+.chip--green{background:var(--green-soft);color:var(--green)}
+.chip--clay{background:var(--clay-soft);color:#9A5636}
+.chip--butter{background:var(--butter-soft);color:#8A6E22}
+.muted{color:var(--dim)}
+.small{font-size:12px}
+
+/* summary strip */
+.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px}
+.stat .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.stat .val{font-size:26px;font-weight:600;letter-spacing:-.02em;margin-top:6px}
+.stat .val.neg{color:var(--clay)}
+.stat .foot{font-size:11.5px;color:var(--dim);margin-top:3px}
+@media(max-width:760px){.strip{grid-template-columns:1fr 1fr}.stat:first-child{grid-column:1/-1}}
+
+/* toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:7px 12px;box-shadow:var(--shadow)}
+.search input{border:0;background:none;outline:none;flex:1;font-size:13px}
+.search kbd{font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--dim)}
+select.f{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:7px 11px;font-size:12.5px;color:var(--ink);outline:none;box-shadow:var(--shadow)}
+select.f:focus{border-color:var(--green)}
+
+/* ledger */
+.ledger{padding:6px 0 8px}
+.day{border-bottom:1px solid var(--line2)}
+.day:last-child{border-bottom:none}
+.day__hd{display:flex;justify-content:space-between;align-items:baseline;padding:11px 20px 7px;background:linear-gradient(var(--card),var(--card))}
+.day__hd b{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:500}
+.day__hd span{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.tx{display:grid;grid-template-columns:26px 1fr 118px 128px 96px;gap:12px;align-items:center;padding:9px 20px;border-top:1px solid var(--line2);cursor:default;position:relative}
+.tx:hover{background:#FBFDFA}
+.tx.sel{background:var(--green-soft);box-shadow:inset 2px 0 0 var(--green)}
+.tx.sel .chip{background:#fff;border:1px solid var(--line)}
+.tx__mk{width:26px;height:26px;border-radius:9px;background:var(--green-soft);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600}
+.tx__main{min-width:0}
+.tx__main b{display:block;font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx__main span{font-size:11px;color:var(--dim)}
+.tx__cat{justify-self:start;cursor:pointer;border:1px dashed transparent;border-radius:99px;padding:1px}
+.tx__cat:hover{border-color:var(--line)}
+.tx__acct{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx__amt{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tx__amt.in{color:var(--green)}
+@media(max-width:820px){
+  .top__in{gap:10px;padding:0 14px}
+  .nav{overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;flex:1}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{white-space:nowrap;padding:7px 10px;font-size:12.5px}
+  #quickBtn{display:none}
+  .avatar{display:none}
+  .page{padding:18px 14px 96px}
+  .tx{grid-template-columns:26px 1fr 90px;gap:10px;padding:10px 14px}
+  .tx__acct,.tx__cat{display:none}
+  .tx__amt{font-size:12.5px}
+  .day__hd{padding:10px 14px 6px}
+}
+
+/* empty */
+.empty{padding:44px 20px;text-align:center}
+.empty h3{font-size:15px;margin-bottom:6px}
+.empty p{color:var(--dim);font-size:13px;max-width:36ch;margin:0 auto 16px}
+
+/* accounts / categories */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line2)}
+.row:last-child{border-bottom:none}
+.row .grow{flex:1;min-width:0}
+.row b{font-weight:500;font-size:13.5px}
+.row .sub{font-size:11.5px;color:var(--dim)}
+.row .amt{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.swatch{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px}
+.tree{list-style:none;margin:0;padding:0}
+.tree li{padding:8px 0 8px 0;border-bottom:1px solid var(--line2)}
+.tree li:last-child{border-bottom:none}
+.tree .child{padding-left:22px}
+.tree .parent{font-weight:500}
+.count{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(23,37,31,.34);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;opacity:0;pointer-events:none;transition:opacity .16s}
+.scrim.on{opacity:1;pointer-events:auto}
+.modal{width:100%;max-width:520px;background:var(--card);border-radius:22px;box-shadow:0 30px 70px rgba(20,45,35,.28);padding:20px;transform:translateY(-8px) scale(.99);transition:transform .18s cubic-bezier(.2,.7,.3,1)}
+.scrim.on .modal{transform:none}
+.modal h3{font-size:15px;margin-bottom:12px}
+.qa{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:11px 14px;background:#fff}
+.qa input{border:0;outline:none;flex:1;font-size:15px}
+.qa .hint{font-family:var(--mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.qa__preview{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;min-height:24px}
+.qa__grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.modal__foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+.modal__foot .keys{font-family:var(--mono);font-size:10px;color:var(--dim)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:99px;font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:0 12px 30px rgba(23,37,31,.28)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* fab */
+.fab{position:fixed;right:22px;bottom:22px;background:var(--green);color:#fff;border-radius:16px;padding:12px 16px;font-size:13px;font-weight:500;box-shadow:0 14px 30px rgba(31,111,92,.34);display:flex;align-items:center;gap:8px;z-index:50}
+.fab kbd{font-family:var(--mono);font-size:9.5px;background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px}
+
+/* onboarding */
+.ob{max-width:520px;margin:6vh auto 0}
+.ob .steps{display:flex;gap:6px;margin-bottom:18px}
+.ob .steps i{height:3px;border-radius:99px;background:var(--line);flex:1}
+.ob .steps i.on{background:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="authView" class="auth">
+  <div class="auth__brand">
+    <div class="auth__mark"><i>G</i> gullak</div>
+    <div>
+      <h1>A ledger detailed enough<br>for an accountant.</h1>
+      <p>MVP 0 — the skeleton. Accounts, categories and a ledger you can actually trust, before any agent touches it.</p>
+      <ul>
+        <li>Transactions with splits, transfers and provenance</li>
+        <li>Every row scoped to your household, enforced server-side</li>
+        <li>Keyboard-first entry: a month in under ten minutes</li>
+      </ul>
+    </div>
+  </div>
+  <div class="auth__form">
+    <div class="auth__box">
+      <h2 id="authTitle">Sign in</h2>
+      <p class="sub" id="authSub">Welcome back. Your ledger is where you left it.</p>
+      <div class="field"><label>Email</label><input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input id="authPass" type="password" placeholder="at least 8 characters" autocomplete="current-password"></div>
+      <div class="field hide" id="nameField"><label>Your name</label><input id="authName" type="text" placeholder="Vaibhav Kumar"></div>
+      <button class="btn btn--block" id="authBtn">Sign in</button>
+      <div class="err" id="authErr"></div>
+      <div class="switch">
+        <span id="switchText">New here?</span>
+        <button id="switchBtn">Create an account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="appView" class="hide">
+  <div class="top">
+    <div class="top__in">
+      <div class="wordmark"><i>G</i> gullak</div>
+      <nav class="nav" id="nav">
+        <button data-view="ledger" class="on">Ledger</button>
+        <button data-view="accounts">Accounts</button>
+        <button data-view="categories">Categories</button>
+        <button data-view="settings">Settings</button>
+      </nav>
+      <div class="top__right">
+        <button class="btn btn--ghost btn--sm" id="quickBtn">+ Add</button>
+        <div class="avatar" id="avatar">V</div>
+      </div>
+    </div>
+  </div>
+  <div class="page" id="page"></div>
+  <button class="fab" id="fab">+ Add transaction <kbd>N</kbd></button>
+</div>
+
+<!-- ================= QUICK ADD ================= -->
+<div class="scrim" id="qaScrim">
+  <div class="modal">
+    <h3>Add a transaction</h3>
+    <div class="qa">
+      <input id="qaInput" placeholder="320 swiggy yesterday" autocomplete="off" spellcheck="false">
+      <span class="hint">enter to save</span>
+    </div>
+    <div class="qa__preview" id="qaPreview"></div>
+    <div class="qa__grid">
+      <div class="field"><label>Account</label><select id="qaAccount"></select></div>
+      <div class="field"><label>Category</label><select id="qaCategory"></select></div>
+      <div class="field"><label>Amount</label><input id="qaAmount" class="num" placeholder="0.00"></div>
+      <div class="field"><label>Date</label><input id="qaDate" type="date"></div>
+    </div>
+    <div class="modal__foot">
+      <span class="keys">esc to close · type freely, the fields follow</span>
+      <button class="btn" id="qaSave">Save transaction</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Gullak — MVP 0 prototype
+   Single-file, localStorage-backed. Same data model as the
+   FastAPI + Postgres backend in the delivered repo.
+   ============================================================ */
+const DB_KEY = 'gullak.mvp0.v1';
+const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const INR2 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
+
+const uid = () => 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const fmtDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+const dayLabel = (iso) => {
+  const t = todayISO();
+  if (iso === t) return 'Today';
+  if (iso === addDays(t, -1)) return 'Yesterday';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
+};
+const money = (paise) => INR.format(paise / 100);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------------- store ---------------- */
+let db = load();
+let session = null;          // { userId }
+let ui = { view: 'ledger', filterAccount: 'all', filterCategory: 'all', filterDir: 'all', q: '', sel: 0, limit: 120 };
+
+function load() {
+  try { const raw = localStorage.getItem(DB_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+  return { users: [], households: [], memberships: [], accounts: [], categories: [], merchants: [], transactions: [] };
+}
+function save() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+/* ---------------- domain ---------------- */
+const me = () => db.users.find((u) => u.id === session?.userId) || null;
+const myHousehold = () => {
+  const m = db.memberships.find((x) => x.user_id === session?.userId);
+  return m ? db.households.find((h) => h.id === m.household_id) : null;
+};
+const H = () => myHousehold()?.id;
+// tenant isolation: every read goes through this
+const myAccounts = () => db.accounts.filter((a) => a.household_id === H() && !a.archived);
+const myCategories = () => db.categories.filter((c) => c.household_id === H());
+const myTx = () => db.transactions.filter((t) => t.household_id === H());
+const catById = (id) => db.categories.find((c) => c.id === id);
+const acctById = (id) => db.accounts.find((a) => a.id === id);
+const acctBalance = (a) => a.opening_balance + myTx().filter((t) => t.account_id === a.id)
+  .reduce((s, t) => s + (t.direction === 'credit' ? t.amount : -t.amount), 0);
+
+const DEFAULT_CATS = [
+  ['Food & drink', ['Groceries', 'Dining', 'Delivery', 'Coffee']],
+  ['Housing', ['Rent', 'Electricity', 'Internet', 'Maintenance']],
+  ['Transport', ['Cab', 'Fuel', 'Train', 'Metro']],
+  ['Shopping', ['Clothing', 'Electronics', 'Home']],
+  ['Health', ['Pharmacy', 'Doctor', 'Fitness']],
+  ['Entertainment', ['Subscriptions', 'Movies', 'Events']],
+  ['Money', ['Fees', 'Interest', 'Insurance']],
+  ['Income', ['Salary', 'Freelance', 'Refund']],
+];
+const CAT_COLOURS = ['green', 'clay', 'butter'];
+
+function seedCategories(hid) {
+  const out = [];
+  for (const [parent, kids] of DEFAULT_CATS) {
+    const p = { id: uid(), household_id: hid, parent_id: null, name: parent, kind: parent === 'Income' ? 'income' : 'expense', colour: CAT_COLOURS[out.length % 3] };
+    out.push(p);
+    for (const k of kids) out.push({ id: uid(), household_id: hid, parent_id: p.id, name: k, kind: p.kind, colour: p.colour });
+  }
+  db.categories.push(...out);
+  return out;
+}
+
+/* ---------------- auth ---------------- */
+function hash(s) { // prototype-only obfuscation; the real backend uses Argon2id
+  let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return 'h' + Math.abs(h).toString(36);
+}
+
+function signup(email, pass, name) {
+  if (!email.includes('@')) throw new Error('Enter a valid email address.');
+  if (pass.length < 8) throw new Error('Password needs at least 8 characters.');
+  if (db.users.some((u) => u.email === email.toLowerCase())) throw new Error('That email already has an account.');
+  const user = { id: uid(), email: email.toLowerCase(), name: name || email.split('@')[0], password_hash: hash(pass), timezone: 'Asia/Kolkata', currency: 'INR', created_at: new Date().toISOString() };
+  db.users.push(user);
+  const hid = uid();
+  db.households.push({ id: hid, name: `${user.name.split(' ')[0]}'s household`, currency: 'INR', cycle_start_day: 1, created_at: new Date().toISOString() });
+  db.memberships.push({ id: uid(), household_id: hid, user_id: user.id, role: 'owner' });
+  seedCategories(hid);
+  save();
+  session = { userId: user.id };
+  return user;
+}
+
+function login(email, pass) {
+  const u = db.users.find((x) => x.email === email.toLowerCase());
+  if (!u || u.password_hash !== hash(pass)) throw new Error('Email or password is incorrect.');
+  session = { userId: u.id };
+  return u;
+}
+
+/* ---------------- natural language parse ---------------- */
+const DATE_WORDS = { today: 0, yesterday: -1, 'day before': -2 };
+function parseQuickAdd(text) {
+  const raw = text.trim();
+  let amount = null, date = todayISO(), merchant = raw;
+  const m = raw.match(/(?:₹|rs\.?\s*)?(\d+(?:[.,]\d{1,2})?)\s*(k|thousand)?/i);
+  if (m) {
+    let v = parseFloat(m[1].replace(',', '.'));
+    if (m[2]) v *= 1000;
+    amount = Math.round(v * 100);
+    merchant = raw.replace(m[0], ' ').trim();
+  }
+  for (const [w, d] of Object.entries(DATE_WORDS)) {
+    if (new RegExp('\\b' + w + '\\b', 'i').test(raw)) { date = addDays(todayISO(), d); merchant = merchant.replace(new RegExp(w, 'ig'), '').trim(); }
+  }
+  const dm = raw.match(/\b(\d{1,2})[\/-](\d{1,2})\b/);
+  if (dm) {
+    const y = new Date().getFullYear();
+    const iso = `${y}-${String(dm[2]).padStart(2, '0')}-${String(dm[1]).padStart(2, '0')}`;
+    if (!isNaN(new Date(iso))) { date = iso; merchant = merchant.replace(dm[0], '').trim(); }
+  }
+  merchant = merchant.replace(/\s+/g, ' ').replace(/^(at|on|for)\s+/i, '').trim();
+  return { amount, date, merchant: merchant || 'Untitled', raw };
+}
+
+function guessCategory(merchant) {
+  const q = merchant.toLowerCase();
+  const hit = db.merchants.find((mm) => q.includes(mm.name.toLowerCase()));
+  if (hit) return hit.default_category_id;
+  const rules = [
+    [/swiggy|zomato|blinkit|zepto|bigbasket|dmart|instamart|grocer/, 'Groceries'],
+    [/cafe|coffee|chai|starbucks|third wave/, 'Coffee'],
+    [/uber|ola|rapido|cab/, 'Cab'],
+    [/irctc|train|metro/, 'Train'],
+    [/jio|airtel|vodafone|broadband|internet/, 'Internet'],
+    [/netflix|hotstar|spotify|prime|subscription/, 'Subscriptions'],
+    [/rent|landlord/, 'Rent'],
+    [/electricity|bescom|tata power/, 'Electricity'],
+    [/cult|gym|fitness/, 'Fitness'],
+    [/pharmacy|apollo|medplus/, 'Pharmacy'],
+    [/salary/, 'Salary'],
+  ];
+  for (const [re, name] of rules) if (re.test(q)) return myCategories().find((c) => c.name === name)?.id || null;
+  return null;
+}
+
+/* ---------------- seed ---------------- */
+const MERCHANTS = [
+  ['Swiggy', 'Dining', 1, [180, 620]], ['Zomato', 'Dining', 1, [200, 700]], ['Blinkit', 'Groceries', 2, [240, 1400]],
+  ['Zepto', 'Groceries', 1, [200, 1200]], ['BigBasket', 'Groceries', 2, [900, 3800]], ['DMart', 'Groceries', 1, [1200, 4200]],
+  ['Third Wave Coffee', 'Coffee', 1, [140, 420]], ['Blue Tokai', 'Coffee', 1, [180, 520]],
+  ['Uber', 'Cab', 2, [90, 480]], ['Ola', 'Cab', 1, [80, 420]], ['Rapido', 'Cab', 1, [50, 180]],
+  ['Netflix', 'Subscriptions', 0, [649, 649]], ['Hotstar', 'Subscriptions', 0, [299, 299]], ['Spotify', 'Subscriptions', 0, [119, 119]],
+  ['Cult.fit', 'Fitness', 0, [1499, 1499]], ['Apollo Pharmacy', 'Pharmacy', 1, [120, 900]],
+  ['Amazon', 'Electronics', 2, [300, 4500]], ['Myntra', 'Clothing', 1, [600, 3200]],
+  ['Jio', 'Internet', 0, [799, 799]], ['IRCTC', 'Train', 0, [450, 1800]],
+];
+
+function seedDemoData(hid) {
+  const cats = myCategories();
+  const findCat = (n) => cats.find((c) => c.name === n)?.id || null;
+  // merchants with defaults
+  for (const [name, cat] of MERCHANTS) {
+    if (!db.merchants.some((m) => m.household_id === hid && m.name === name)) {
+      db.merchants.push({ id: uid(), household_id: hid, name, default_category_id: findCat(cat) });
+    }
+  }
+  const accounts = myAccounts();
+  const bank = accounts[0];
+  let card = accounts.find((a) => a.type === 'credit_card');
+  if (!card) {
+    card = { id: uid(), household_id: hid, name: 'HDFC Credit Card', type: 'credit_card', institution: 'HDFC', masked_number: '•••• 4412', opening_balance: 0, currency: 'INR', archived: false };
+    db.accounts.push(card);
+  }
+  let cash = accounts.find((a) => a.type === 'cash');
+  if (!cash) {
+    cash = { id: uid(), household_id: hid, name: 'Cash', type: 'cash', institution: '', masked_number: '', opening_balance: 4000000, currency: 'INR', archived: false };
+    db.accounts.push(cash);
+  }
+
+  const rndInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const rndMoney = (a, b) => Math.round((a + Math.random() * (b - a)) / 10) * 10;
+  const start = addDays(todayISO(), -179);
+  const rows = [];
+  for (let d = 0; d < 180; d++) {
+    const date = addDays(start, d);
+    const dow = new Date(date + 'T00:00:00').getDay();
+    const n = dow === 0 || dow === 6 ? rndInt(3, 5) : rndInt(2, 4);
+    for (let i = 0; i < n; i++) {
+      const [name, catName, weight, [lo, hi]] = MERCHANTS[Math.floor(Math.random() * MERCHANTS.length)];
+      if (Math.random() * 10 > weight + 5) continue;
+      const acct = Math.random() < 0.55 ? bank : (Math.random() < 0.7 ? card : cash);
+      rows.push({
+        id: uid(), household_id: hid, account_id: acct.id, direction: 'debit',
+        amount: rndMoney(lo, hi) * 100, occurred_at: date, merchant: name,
+        category_id: findCat(catName), note: '', source: 'seed', confidence: 1,
+        created_at: new Date().toISOString(),
+      });
+    }
+    if (date.endsWith('-01') || d === 0) {
+      rows.push({ id: uid(), household_id: hid, account_id: bank.id, direction: 'credit', amount: 14200000, occurred_at: date, merchant: 'Salary — Acme', category_id: findCat('Salary'), note: '', source: 'seed', confidence: 1, created_at: new Date().toISOString() });
+      rows.push({ id: uid(), household_id: hid, account_id: bank.id, direction: 'debit', amount: 3200000, occurred_at: date, merchant: 'Rent', category_id: findCat('Rent'), note: '', source: 'seed', confidence: 1, created_at: new Date().toISOString() });
+      rows.push({ id: uid(), household_id: hid, account_id: bank.id, direction: 'debit', amount: rndMoney(120000, 260000), occurred_at: date, merchant: 'Electricity', category_id: findCat('Electricity'), note: '', source: 'seed', confidence: 1, created_at: new Date().toISOString() });
+    }
+  }
+  db.transactions.push(...rows);
+  save();
+  return rows.length;
+}
+
+/* ---------------- render ---------------- */
+const $ = (s) => document.querySelector(s);
+const page = $('#page');
+
+function render() {
+  if (!session || !me()) { $('#authView').classList.remove('hide'); $('#appView').classList.add('hide'); return; }
+  $('#authView').classList.add('hide');
+  $('#appView').classList.remove('hide');
+  $('#avatar').textContent = (me().name || 'G').slice(0, 1).toUpperCase();
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === ui.view));
+  if (!myAccounts().length) return renderOnboarding();
+  if (ui.view === 'ledger') renderLedger();
+  if (ui.view === 'accounts') renderAccounts();
+  if (ui.view === 'categories') renderCategories();
+  if (ui.view === 'settings') renderSettings();
+}
+
+function renderOnboarding() {
+  page.innerHTML = `<div class="ob"><div class="card card--pad">
+    <div class="steps"><i class="on"></i><i></i></div>
+    <h2 style="font-size:19px;margin-bottom:4px">Add your first account</h2>
+    <p class="small muted" style="margin:0 0 16px">Everything is scoped to this household. You can add more later.</p>
+    <div class="field"><label>Account name</label><input id="obName" value="HDFC Savings" placeholder="HDFC Savings"></div>
+    <div class="field"><label>Type</label><select id="obType"><option value="bank">Bank</option><option value="credit_card">Credit card</option><option value="wallet">Wallet</option><option value="cash">Cash</option></select></div>
+    <div class="field"><label>Current balance (₹)</label><input id="obBal" class="num" value="42500" inputmode="decimal"></div>
+    <button class="btn btn--block" id="obSave">Create account and open the ledger</button>
+  </div></div>`;
+  $('#obSave').onclick = () => {
+    const name = $('#obName').value.trim() || 'Account';
+    const bal = Math.round((parseFloat($('#obBal').value.replace(/,/g, '')) || 0) * 100);
+    db.accounts.push({ id: uid(), household_id: H(), name, type: $('#obType').value, institution: '', masked_number: '', opening_balance: bal, currency: 'INR', archived: false });
+    save();
+    toast('Account created');
+    render();
+  };
+}
+
+function filteredTx() {
+  const q = ui.q.toLowerCase().trim();
+  return myTx()
+    .filter((t) => ui.filterAccount === 'all' || t.account_id === ui.filterAccount)
+    .filter((t) => ui.filterCategory === 'all' || t.category_id === ui.filterCategory)
+    .filter((t) => ui.filterDir === 'all' || t.direction === ui.filterDir)
+    .filter((t) => !q || t.merchant.toLowerCase().includes(q) || (t.note || '').toLowerCase().includes(q))
+    .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : a.occurred_at > b.occurred_at ? -1 : 0));
+}
+
+function monthStats() {
+  const m = todayISO().slice(0, 7);
+  const rows = myTx().filter((t) => t.occurred_at.startsWith(m));
+  const out = rows.filter((t) => t.direction === 'debit').reduce((s, t) => s + t.amount, 0);
+  const inn = rows.filter((t) => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
+  return { out, inn, net: inn - out, count: rows.length };
+}
+
+function renderLedger() {
+  const s = monthStats();
+  const rows = filteredTx();
+  const shown = rows.slice(0, ui.limit);
+  const groups = {};
+  for (const t of shown) (groups[t.occurred_at] = groups[t.occurred_at] || []).push(t);
+  const dayTotals = (list) => list.reduce((acc, t) => acc + (t.direction === 'credit' ? t.amount : -t.amount), 0);
+
+  const catOptions = myCategories().filter((c) => !c.parent_id).map((p) => {
+    const kids = myCategories().filter((k) => k.parent_id === p.id);
+    return `<optgroup label="${esc(p.name)}">${kids.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join('')}</optgroup>`;
+  }).join('');
+
+  page.innerHTML = `
+    <div class="strip">
+      <div class="stat"><div class="lbl">Spent this month</div><div class="val">${money(s.out)}</div><div class="foot">${s.count} transactions</div></div>
+      <div class="stat"><div class="lbl">Income</div><div class="val">${money(s.inn)}</div><div class="foot">${new Date().toLocaleDateString('en-IN', { month: 'long' })}</div></div>
+      <div class="stat"><div class="lbl">Net</div><div class="val ${s.net < 0 ? 'neg' : ''}">${money(s.net)}</div><div class="foot">income minus spend</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><input id="q" placeholder="Search merchant or note" value="${esc(ui.q)}"><kbd>/</kbd></div>
+      <select class="f" id="fAcct"><option value="all">All accounts</option>${myAccounts().map((a) => `<option value="${a.id}" ${ui.filterAccount === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+      <select class="f" id="fCat"><option value="all">All categories</option>${catOptions}</select>
+      <select class="f" id="fDir"><option value="all">In and out</option><option value="debit" ${ui.filterDir === 'debit' ? 'selected' : ''}>Out only</option><option value="credit" ${ui.filterDir === 'credit' ? 'selected' : ''}>In only</option></select>
+    </div>
+    <div class="card ledger" id="ledger">
+      ${rows.length === 0 ? emptyState() : Object.entries(groups).map(([date, list]) => `
+        <div class="day">
+          <div class="day__hd"><b>${dayLabel(date)}</b><span>${money(dayTotals(list))}</span></div>
+          ${list.map((t, i) => txRow(t, catOptions)).join('')}
+        </div>`).join('')}
+    </div>
+    ${rows.length > shown.length ? `<div style="text-align:center;margin-top:14px"><button class="btn btn--ghost" id="more">Load ${Math.min(120, rows.length - shown.length)} more</button></div>` : ''}
+    <p class="small muted" style="margin-top:14px;text-align:center">j / k to move · e to change category · / to search · n to add</p>
+  `;
+
+  $('#q').oninput = (e) => { ui.q = e.target.value; ui.limit = 120; renderLedger(); const el = $('#q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
+  $('#fAcct').onchange = (e) => { ui.filterAccount = e.target.value; renderLedger(); };
+  $('#fCat').onchange = (e) => { ui.filterCategory = e.target.value; renderLedger(); };
+  $('#fDir').onchange = (e) => { ui.filterDir = e.target.value; renderLedger(); };
+  const more = $('#more'); if (more) more.onclick = () => { ui.limit += 120; renderLedger(); };
+
+  document.querySelectorAll('[data-cat]').forEach((el) => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const txId = el.dataset.cat;
+      const current = myTx().find((t) => t.id === txId)?.category_id;
+      el.outerHTML = `<select class="f" style="font-size:11px;padding:3px 8px" data-edit="${txId}">${catOptions}</select>`;
+      const sel = document.querySelector(`[data-edit="${txId}"]`);
+      sel.value = current || '';
+      sel.focus();
+      sel.onchange = () => {
+        const t = db.transactions.find((x) => x.id === txId);
+        if (t) { t.category_id = sel.value; save(); toast('Category updated'); }
+        renderLedger();
+      };
+      sel.onblur = () => renderLedger();
+    };
+  });
+  selectRow(0);
+}
+
+function emptyState() {
+  return `<div class="empty">
+    <h3>${myTx().length ? 'Nothing matches those filters' : 'Your ledger is empty'}</h3>
+    <p>${myTx().length ? 'Try clearing the search or picking a different account.' : 'Add your first transaction, or load six months of believable demo data to see how the ledger behaves at volume.'}</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn" onclick="openQA()">Add a transaction</button>
+      ${myTx().length ? '' : `<button class="btn btn--ghost" onclick="loadDemo()">Load demo data</button>`}
+    </div>
+  </div>`;
+}
+
+function txRow(t, catOptions) {
+  const cat = catById(t.category_id);
+  const acct = acctById(t.account_id);
+  const cls = ['chip', cat ? `chip--${cat.colour || 'green'}` : ''].join(' ');
+  return `<div class="tx" data-tx="${t.id}">
+    <div class="tx__mk">${esc((t.merchant || '?').slice(0, 1).toUpperCase())}</div>
+    <div class="tx__main"><b>${esc(t.merchant)}</b><span>${esc(t.note || (t.source === 'seed' ? 'imported' : 'manual'))}</span></div>
+    <div class="tx__cat"><span class="${cls}" data-cat="${t.id}">${cat ? esc(cat.name) : 'Uncategorised'}</span></div>
+    <div class="tx__acct">${esc(acct ? acct.name : '—')}</div>
+    <div class="tx__amt ${t.direction === 'credit' ? 'in' : ''}">${t.direction === 'credit' ? '+' : '−'}${money(t.amount)}</div>
+  </div>`;
+}
+
+function selectRow(i) {
+  const rows = [...document.querySelectorAll('.tx')];
+  if (!rows.length) return;
+  ui.sel = Math.max(0, Math.min(i, rows.length - 1));
+  rows.forEach((r, k) => r.classList.toggle('sel', k === ui.sel));
+  rows[ui.sel].scrollIntoView({ block: 'nearest' });
+}
+
+function renderAccounts() {
+  const accts = myAccounts();
+  const total = accts.reduce((s, a) => s + acctBalance(a), 0);
+  page.innerHTML = `
+    <div class="hd"><div><h2>Accounts</h2><div class="sub">Balances are computed from the opening balance plus every transaction.</div></div>
+      <button class="btn btn--ghost btn--sm" id="addAcct">+ New account</button></div>
+    <div class="card card--pad">
+      <div class="row" style="border-bottom:1px solid var(--line)"><div class="grow"><b>Net across accounts</b><div class="sub">${accts.length} accounts</div></div><div class="amt">${money(total)}</div></div>
+      ${accts.map((a) => `<div class="row">
+        <div class="tx__mk">${esc(a.name.slice(0, 1).toUpperCase())}</div>
+        <div class="grow"><b>${esc(a.name)}</b><div class="sub">${esc(a.type.replace('_', ' '))}${a.masked_number ? ' · ' + esc(a.masked_number) : ''}</div></div>
+        <div class="amt ${acctBalance(a) < 0 ? '' : ''}">${money(acctBalance(a))}</div>
+      </div>`).join('')}
+    </div>`;
+  $('#addAcct').onclick = () => {
+    const name = prompt('Account name'); if (!name) return;
+    const bal = parseFloat(prompt('Opening balance (₹)', '0') || '0') || 0;
+    db.accounts.push({ id: uid(), household_id: H(), name, type: 'bank', institution: '', masked_number: '', opening_balance: Math.round(bal * 100), currency: 'INR', archived: false });
+    save(); renderAccounts(); toast('Account added');
+  };
+}
+
+function renderCategories() {
+  const cats = myCategories();
+  const parents = cats.filter((c) => !c.parent_id);
+  const usage = (id) => myTx().filter((t) => t.category_id === id).length;
+  const usageOf = (p) => usage(p.id) + cats.filter((k) => k.parent_id === p.id).reduce((s, k) => s + usage(k.id), 0);
+  page.innerHTML = `
+    <div class="hd"><div><h2>Categories</h2><div class="sub">Two levels. Usage counts come from the ledger.</div></div>
+      <button class="btn btn--ghost btn--sm" id="addCat">+ New category</button></div>
+    <div class="card card--pad"><ul class="tree">
+      ${parents.map((p) => `
+        <li><div class="row" style="border:0;padding:4px 0"><div class="grow"><span class="parent"><i class="swatch" style="background:var(--${p.colour || 'green'})"></i>${esc(p.name)}</span></div><span class="count">${usageOf(p)}</span></div>
+        ${cats.filter((k) => k.parent_id === p.id).map((k) => `<div class="row child" style="border:0;padding:4px 0 4px 22px"><div class="grow">${esc(k.name)}</div><span class="count">${usage(k.id)}</span></div>`).join('')}
+        </li>`).join('')}
+    </ul></div>`;
+  $('#addCat').onclick = () => {
+    const name = prompt('Category name'); if (!name) return;
+    const parentName = prompt('Parent category (leave blank for a top-level category)', 'Food & drink');
+    const parent = parents.find((p) => p.name.toLowerCase() === (parentName || '').toLowerCase());
+    db.categories.push({ id: uid(), household_id: H(), parent_id: parent ? parent.id : null, name, kind: 'expense', colour: parent ? parent.colour : 'green' });
+    save(); renderCategories(); toast('Category added');
+  };
+}
+
+function renderSettings() {
+  const h = myHousehold();
+  page.innerHTML = `
+    <div class="hd"><div><h2>Settings</h2><div class="sub">Everything here is stored against your household.</div></div></div>
+    <div class="grid2">
+      <div class="card card--pad">
+        <h3 style="font-size:14px;margin-bottom:12px">Profile</h3>
+        <div class="field"><label>Name</label><input id="setName" value="${esc(me().name)}"></div>
+        <div class="field"><label>Email</label><input value="${esc(me().email)}" disabled></div>
+        <div class="field"><label>Household</label><input id="setHouse" value="${esc(h.name)}"></div>
+        <div class="field"><label>Currency</label><select id="setCur"><option ${h.currency === 'INR' ? 'selected' : ''}>INR</option><option ${h.currency === 'USD' ? 'selected' : ''}>USD</option></select></div>
+        <button class="btn btn--sm" id="saveSettings">Save changes</button>
+      </div>
+      <div class="card card--pad">
+        <h3 style="font-size:14px;margin-bottom:12px">Data</h3>
+        <p class="small muted" style="margin-top:0">Load six months of demo data to test the ledger at volume — about 600 transactions across three accounts.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+          <button class="btn btn--sm" id="loadDemo">Load demo data</button>
+          <button class="btn btn--ghost btn--sm" id="clearDemo">Clear all transactions</button>
+        </div>
+        <h3 style="font-size:14px;margin:18px 0 10px">Session</h3>
+        <p class="small muted" style="margin-top:0">${myTx().length} transactions · ${myAccounts().length} accounts · household ${esc(h.id.slice(0, 8))}</p>
+        <button class="btn btn--ghost btn--sm" id="logout">Sign out</button>
+      </div>
+    </div>`;
+  $('#saveSettings').onclick = () => {
+    me().name = $('#setName').value.trim() || me().name;
+    h.name = $('#setHouse').value.trim() || h.name;
+    h.currency = $('#setCur').value;
+    save(); render(); toast('Settings saved');
+  };
+  $('#loadDemo').onclick = loadDemo;
+  $('#clearDemo').onclick = () => { db.transactions = db.transactions.filter((t) => t.household_id !== H()); save(); render(); toast('Transactions cleared'); };
+  $('#logout').onclick = () => { session = null; render(); };
+}
+
+function loadDemo() {
+  const n = seedDemoData(H());
+  ui.limit = 120;
+  toast(`${n} transactions loaded`);
+  render();
+}
+
+/* ---------------- quick add ---------------- */
+function openQA() {
+  const scrim = $('#qaScrim');
+  scrim.classList.add('on');
+  const acc = $('#qaAccount'), cat = $('#qaCategory');
+  acc.innerHTML = myAccounts().map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  cat.innerHTML = myCategories().filter((c) => !c.parent_id).map((p) => `<optgroup label="${esc(p.name)}">${myCategories().filter((k) => k.parent_id === p.id).map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join('')}</optgroup>`).join('');
+  $('#qaInput').value = '';
+  $('#qaAmount').value = '';
+  $('#qaDate').value = todayISO();
+  $('#qaPreview').innerHTML = '';
+  setTimeout(() => $('#qaInput').focus(), 60);
+}
+
+function qaPreview() {
+  const p = parseQuickAdd($('#qaInput').value);
+  if (!p.amount) { $('#qaPreview').innerHTML = '<span class="small muted">Type an amount to see what will be saved.</span>'; return; }
+  const guess = guessCategory(p.merchant);
+  if (guess) $('#qaCategory').value = guess;
+  $('#qaAmount').value = (p.amount / 100).toFixed(2);
+  $('#qaDate').value = p.date;
+  $('#qaPreview').innerHTML = `
+    <span class="chip chip--green">${esc(p.merchant)}</span>
+    <span class="chip chip--butter">${money(p.amount)}</span>
+    <span class="chip">${dayLabel(p.date)}</span>
+    <span class="chip">${esc(catById($('#qaCategory').value)?.name || 'uncategorised')}</span>`;
+}
+
+function saveQA() {
+  const amount = Math.round((parseFloat($('#qaAmount').value) || 0) * 100);
+  if (!amount) { toast('Add an amount first'); return; }
+  const p = parseQuickAdd($('#qaInput').value);
+  db.transactions.push({
+    id: uid(), household_id: H(), account_id: $('#qaAccount').value,
+    direction: 'debit', amount, occurred_at: $('#qaDate').value || todayISO(),
+    merchant: p.merchant || 'Untitled', category_id: $('#qaCategory').value || null,
+    note: '', source: 'manual', confidence: 1, created_at: new Date().toISOString(),
+  });
+  save();
+  $('#qaScrim').classList.remove('on');
+  toast(`${money(amount)} added`);
+  ui.view = 'ledger'; render();
+}
+
+/* ---------------- toast ---------------- */
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1900);
+}
+
+/* ---------------- wiring ---------------- */
+let authMode = 'login';
+$('#switchBtn').onclick = () => {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  $('#authTitle').textContent = authMode === 'login' ? 'Sign in' : 'Create your account';
+  $('#authSub').textContent = authMode === 'login' ? 'Welcome back. Your ledger is where you left it.' : 'One account, one household, and a ledger that starts empty.';
+  $('#nameField').classList.toggle('hide', authMode === 'login');
+  $('#authBtn').textContent = authMode === 'login' ? 'Sign in' : 'Create account';
+  $('#switchText').textContent = authMode === 'login' ? 'New here?' : 'Already have an account?';
+  $('#switchBtn').textContent = authMode === 'login' ? 'Create an account' : 'Sign in';
+  $('#authErr').textContent = '';
+};
+$('#authBtn').onclick = () => {
+  const email = $('#authEmail').value.trim(), pass = $('#authPass').value, name = $('#authName').value.trim();
+  try {
+    authMode === 'login' ? login(email, pass) : signup(email, pass, name);
+    $('#authErr').textContent = '';
+    ui.view = 'ledger'; render();
+  } catch (e) { $('#authErr').textContent = e.message; }
+};
+['authEmail', 'authPass', 'authName'].forEach((id) => {
+  const el = $('#' + id); if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#authBtn').click(); });
+});
+document.querySelectorAll('#nav button').forEach((b) => { b.onclick = () => { ui.view = b.dataset.view; render(); }; });
+$('#quickBtn').onclick = openQA;
+$('#fab').onclick = openQA;
+$('#qaScrim').onclick = (e) => { if (e.target.id === 'qaScrim') $('#qaScrim').classList.remove('on'); };
+$('#qaInput').oninput = qaPreview;
+$('#qaSave').onclick = saveQA;
+$('#qaInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveQA(); });
+
+document.addEventListener('keydown', (e) => {
+  if (!session) return;
+  const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
+  if (e.key === 'Escape') { $('#qaScrim').classList.remove('on'); if (typing) document.activeElement.blur(); return; }
+  if (typing) return;
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openQA(); }
+  if (e.key === '/') { e.preventDefault(); const q = $('#q'); if (q) q.focus(); }
+  if (ui.view !== 'ledger') return;
+  if (e.key === 'j') { e.preventDefault(); selectRow(ui.sel + 1); }
+  if (e.key === 'k') { e.preventDefault(); selectRow(ui.sel - 1); }
+  if (e.key === 'e') {
+    e.preventDefault();
+    const row = document.querySelectorAll('.tx')[ui.sel];
+    const chip = row?.querySelector('[data-cat]');
+    if (chip) chip.click();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
