@@ -1,0 +1,181 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+/* ---------- capture bar ---------- */
+.quick {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  @include m.card;
+  border-radius: 99px;
+  padding: 6px 6px 6px 14px;
+
+  input {
+    flex: 1;
+    border: 0;
+    background: none;
+    outline: none;
+    font-size: 14px;
+    min-width: 0;
+
+    &::placeholder { color: t.$dim; }
+  }
+}
+
+/* ---------- toolbar ---------- */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.search {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  @include m.card;
+  border-radius: 99px;
+  padding: 7px 12px;
+
+  input {
+    border: 0;
+    background: none;
+    outline: none;
+    flex: 1;
+    font-size: 13px;
+  }
+}
+
+.select {
+  border: 1px solid t.$line;
+  background: t.$card;
+  border-radius: 99px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+  color: t.$ink;
+  outline: none;
+  box-shadow: t.$shadow;
+
+  &:focus { border-color: t.$green; }
+}
+
+/* ---------- list ---------- */
+.list {
+  @include m.card;
+  padding: 6px 0 8px;
+}
+
+.day {
+  border-bottom: 1px solid t.$line-soft;
+
+  &:last-child { border-bottom: none; }
+}
+
+.dayHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 11px 20px 7px;
+
+  b {
+    font-family: t.$mono;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: t.$dim;
+    font-weight: 500;
+  }
+
+  span {
+    @include m.figure;
+    font-size: 10px;
+    color: t.$dim;
+  }
+
+  @include m.mq(md) { padding: 10px 14px 6px; }
+}
+
+/* ---------- row ---------- */
+.row {
+  display: grid;
+  grid-template-columns: 26px 1fr 118px 128px 96px;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 20px;
+  border-top: 1px solid t.$line-soft;
+
+  &:hover { background: #fbfdfa; }
+
+  @include m.mq(md) {
+    grid-template-columns: 26px 1fr 90px;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+}
+
+.monogram {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: t.$green-soft;
+  color: t.$green;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.main {
+  min-width: 0;
+
+  b {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span { font-size: 11px; color: t.$dim; }
+}
+
+.category {
+  @include m.mq(md) { display: none; }
+
+  select {
+    font-size: 11px;
+    border: 1px solid t.$line;
+    border-radius: 99px;
+    padding: 3px 8px;
+    background: t.$card;
+    color: t.$ink;
+    max-width: 118px;
+  }
+}
+
+.account {
+  font-size: 11.5px;
+  color: t.$dim;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @include m.mq(md) { display: none; }
+}
+
+.amount {
+  text-align: right;
+  @include m.figure;
+  font-size: 13px;
+
+  &.incoming { color: t.$green; }
+
+  @include m.mq(md) { font-size: 12.5px; }
+}
