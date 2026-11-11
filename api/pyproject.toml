@@ -1,0 +1,11 @@
+[project]
+name = "gullak-api"
+version = "0.1.0"
+description = "Gullak — FastAPI service for MVP 0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+# Make `pytest` resolve `app.*` whether it is run as `pytest` or `python -m pytest`,
+# from the repo root or from api/.
+pythonpath = ["."]
+testpaths = ["tests"]
