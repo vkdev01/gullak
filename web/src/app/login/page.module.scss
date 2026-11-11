@@ -1,5 +1,5 @@
-@use '../../styles/tokens' as t;
-@use '../../styles/mixins' as m;
+@use 'tokens' as t;
+@use 'mixins' as m;
 
 .wrap {
   min-height: calc(100vh - 58px); display: grid; grid-template-columns: 1.05fr 0.95fr;

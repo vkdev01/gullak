@@ -1,5 +1,5 @@
-@use '../styles/tokens' as t;
-@use '../styles/mixins' as m;
+@use 'tokens' as t;
+@use 'mixins' as m;
 
 .page {
   max-width: 1080px; margin: 0 auto; padding: 26px 22px 90px;

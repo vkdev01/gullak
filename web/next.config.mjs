@@ -8,7 +8,7 @@ const nextConfig = {
   assetPrefix: basePath || undefined,
   trailingSlash: true,
   images: { unoptimized: true },
-  sassOptions: { includePaths: ["./styles"] },
+  sassOptions: { includePaths: ["./src/styles"] },
 };
 
 export default nextConfig;
