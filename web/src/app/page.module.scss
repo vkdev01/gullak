@@ -1,0 +1,69 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 26px 22px 90px;
+
+  @include m.mq(md) { padding: 18px 14px 96px; }
+}
+
+.topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.title { font-size: 20px; }
+
+.sub { font-size: 12.5px; color: t.$dim; margin: 4px 0 0; }
+
+.actions { display: flex; gap: 8px; }
+
+.banner {
+  background: t.$butter-soft;
+  border-radius: t.$radius-sm;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #7d6420;
+  margin: 0 0 14px;
+}
+
+.note {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 11.5px;
+  color: t.$dim;
+
+  code {
+    font-family: t.$mono;
+    font-size: 11px;
+    background: t.$sage-100;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+}
+
+@include m.mq(md) {
+  .actions { width: 100%; }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+
+  @include m.mq(md) { grid-template-columns: 1fr; }
+}
+
+.span8 { grid-column: span 8; }
+.span4 { grid-column: span 4; }
+.span12 { grid-column: span 12; }
+
+@include m.mq(md) {
+  .span8, .span4, .span12 { grid-column: 1 / -1; }
+}

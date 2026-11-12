@@ -6,9 +6,11 @@ export const site = {
 };
 
 export const navItems = [
-  { href: "/", label: "Ledger" },
+  { href: "/", label: "Dashboard" },
+  { href: "/ledger/", label: "Ledger" },
+  { href: "/budgets/", label: "Budgets" },
+  { href: "/goals/", label: "Goals" },
   { href: "/import/", label: "Import" },
   { href: "/review/", label: "Review" },
   { href: "/accounts/", label: "Accounts" },
-  { href: "/login/", label: "Sign in" },
 ] as const;
