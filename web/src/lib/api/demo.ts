@@ -6,15 +6,32 @@
  * It mirrors the FastAPI contract in backend/ — same shapes, same rules —
  * and is deliberately not a substitute for it: no auth, no real isolation.
  */
-import type { Account, Category, Summary, Txn } from "./types";
+import { buildCandidates, dedupeHash, type Mapping } from "../csv";
+import { matchMerchant } from "../merchants";
+import type {
+  Account,
+  Category,
+  ImportBatch,
+  ImportDecision,
+  ImportPreview,
+  ImportRow,
+  ReviewRow,
+  Rule,
+  Summary,
+  Txn,
+} from "./types";
 
-const KEY = "gullak.static.v1";
+const KEY = "gullak.static.v2";
+const REVIEW_THRESHOLD = 0.7;
 
 type DB = {
   household: { id: string; name: string; currency: string };
   accounts: Account[];
   categories: Category[];
   transactions: Txn[];
+  rules: Rule[];
+  batches: ImportBatch[];
+  rows: ImportRow[];
 };
 
 const uid = () => "id-" + Math.random().toString(36).slice(2, 10);
@@ -76,6 +93,9 @@ function blank(): DB {
     ],
     categories: cats,
     transactions: [],
+    rules: [],
+    batches: [],
+    rows: [],
   };
 }
 
@@ -236,6 +256,183 @@ export const demo = {
     persist();
     recalc();
     return { created: made };
+  },
+
+  rules: () => db().rules,
+
+  createRule: (input: { pattern: string; category_id: string; name?: string; match_type?: Rule["match_type"] }) => {
+    const d = db();
+    const rule: Rule = {
+      id: uid(),
+      pattern: input.pattern,
+      category_id: input.category_id,
+      category_name: d.categories.find((c) => c.id === input.category_id)?.name ?? null,
+      name: input.name ?? input.pattern,
+      match_type: input.match_type ?? "contains",
+      priority: 100,
+    };
+    d.rules.push(rule);
+    persist();
+    return rule;
+  },
+
+  deleteRule: (id: string) => {
+    const d = db();
+    d.rules = d.rules.filter((r) => r.id !== id);
+    persist();
+  },
+
+  previewImport: (input: { account_id: string; filename?: string; csv: string; mapping?: Mapping }): ImportPreview => {
+    const d = db();
+    const { mapping, rows, warnings } = buildCandidates(input.csv, input.account_id, input.mapping);
+    if (rows.length === 0) throw new Error("No readable rows in that file");
+
+    const byName = new Map(d.categories.map((c) => [c.name, c.id]));
+    const existing = new Set(d.transactions.map((t) => t.dedupe_hash).filter(Boolean) as string[]);
+
+    const batch: ImportBatch = {
+      id: uid(),
+      account_id: input.account_id,
+      filename: input.filename ?? "statement.csv",
+      status: "preview",
+      row_count: rows.length,
+      duplicate_count: 0,
+      review_count: 0,
+      imported_count: 0,
+      created_at: new Date().toISOString(),
+      mapping,
+      warnings,
+    };
+
+    const importRows: ImportRow[] = rows.map((row) => {
+      const matched = matchMerchant(row.description);
+      const rule = d.rules.find((r) => {
+        if (r.match_type === "equals") return row.description.trim().toLowerCase() === r.pattern.trim().toLowerCase();
+        if (r.match_type === "regex") {
+          try {
+            return new RegExp(r.pattern, "i").test(row.description);
+          } catch {
+            return false;
+          }
+        }
+        return row.description.toLowerCase().includes(r.pattern.toLowerCase());
+      });
+
+      const categoryId = rule?.category_id ?? (matched.category ? byName.get(matched.category) ?? null : null);
+      const confidence = rule ? 1 : categoryId ? 0.95 : 0;
+      const hash = dedupeHash(input.account_id, row.occurredAt, row.amount, row.description);
+      const isDuplicate = existing.has(hash);
+      existing.add(hash);
+
+      const status: ImportRow["status"] = isDuplicate ? "duplicate" : confidence < REVIEW_THRESHOLD ? "review" : "ready";
+      if (status === "duplicate") batch.duplicate_count += 1;
+      if (status === "review") batch.review_count += 1;
+
+      return {
+        id: uid(),
+        batch_id: batch.id,
+        line_no: row.lineNo,
+        occurred_at: row.occurredAt,
+        description: row.description,
+        merchant: matched.merchant,
+        direction: row.direction,
+        amount: row.amount,
+        category_id: categoryId,
+        category_name: categoryId ? d.categories.find((c) => c.id === categoryId)?.name ?? null : null,
+        confidence,
+        reason: rule ? "rule" : categoryId ? "merchant" : "none",
+        is_duplicate: isDuplicate,
+        status,
+      };
+    });
+
+    d.batches.unshift(batch);
+    d.rows.push(...importRows);
+    persist();
+    return { batch, rows: importRows };
+  },
+
+  commitImport: (batchId: string, decisions: ImportDecision[] = []): ImportBatch => {
+    const d = db();
+    const batch = d.batches.find((b) => b.id === batchId);
+    if (!batch) throw new Error("Import not found");
+    if (batch.status === "committed") return batch;
+
+    const rows = d.rows.filter((r) => r.batch_id === batchId);
+    const byId = new Map(decisions.map((x) => [x.row_id, x]));
+    const existing = new Set(d.transactions.map((t) => t.dedupe_hash).filter(Boolean) as string[]);
+
+    let imported = 0;
+    for (const row of rows) {
+      const decision = byId.get(row.id);
+      if (decision?.action === "skip") {
+        row.status = "skipped";
+        continue;
+      }
+      if (row.is_duplicate) {
+        row.status = "duplicate";
+        continue;
+      }
+
+      const categoryId = decision?.category_id ?? row.category_id;
+      const hash = dedupeHash(batch.account_id, row.occurred_at, row.amount, row.description);
+      if (existing.has(hash)) {
+        row.status = "duplicate";
+        continue;
+      }
+
+      d.transactions.push({
+        id: uid(),
+        account_id: batch.account_id,
+        direction: row.direction,
+        amount: row.amount,
+        occurred_at: row.occurred_at,
+        merchant: row.merchant,
+        category_id: categoryId ?? null,
+        note: row.description,
+        source: "import",
+        confidence: row.confidence,
+        needs_review: row.confidence < REVIEW_THRESHOLD,
+        dedupe_hash: hash,
+      });
+      existing.add(hash);
+      row.status = "imported";
+      row.category_id = categoryId ?? null;
+      imported += 1;
+    }
+
+    batch.status = "committed";
+    batch.imported_count = imported;
+    persist();
+    recalc();
+    return batch;
+  },
+
+  imports: () => db().batches,
+
+  review: (): ReviewRow[] =>
+    db()
+      .transactions.filter((t) => t.needs_review)
+      .map((t) => {
+        const matched = matchMerchant(`${t.merchant} ${t.note ?? ""}`);
+        const suggested = matched.category
+          ? db().categories.find((c) => c.name === matched.category)?.id ?? null
+          : null;
+        return { ...withNames(t), suggested_category_id: suggested };
+      }),
+
+  bulkCategorise: (ids: string[], categoryId: string) => {
+    const d = db();
+    let updated = 0;
+    for (const t of d.transactions) {
+      if (!ids.includes(t.id)) continue;
+      t.category_id = categoryId;
+      t.confidence = 1;
+      t.needs_review = false;
+      updated += 1;
+    }
+    persist();
+    return { updated };
   },
 
   reset: () => {

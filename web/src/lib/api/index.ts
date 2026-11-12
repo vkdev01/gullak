@@ -1,8 +1,18 @@
 import { demo } from "./demo";
 import { hasApi, getToken, request, setToken } from "./client";
-import type { Account, Category, Summary, Txn } from "./types";
+import type {
+  Account,
+  Category,
+  ImportBatch,
+  ImportDecision,
+  ImportPreview,
+  ReviewRow,
+  Rule,
+  Summary,
+  Txn,
+} from "./types";
 
-export type { Account, Category, Summary, Txn };
+export type { Account, Category, ImportBatch, ImportDecision, ImportPreview, ImportRow, ReviewRow, Rule, Summary, Txn } from "./types";
 export { getToken, setToken };
 
 /**
@@ -54,5 +64,37 @@ export const api = {
     demo.reset();
     return Promise.resolve();
   },
+
+  // ---- imports -------------------------------------------------------------
+  previewImport: (body: { account_id: string; filename?: string; csv: string; mapping?: Record<string, string> }): Promise<ImportPreview> =>
+    isDemoMode()
+      ? Promise.resolve(demo.previewImport(body))
+      : request("/imports/preview", { method: "POST", body: JSON.stringify(body) }),
+
+  commitImport: (batchId: string, decisions?: ImportDecision[]): Promise<ImportBatch> =>
+    isDemoMode()
+      ? Promise.resolve(demo.commitImport(batchId, decisions))
+      : request(`/imports/${batchId}/commit`, { method: "POST", body: JSON.stringify({ decisions: decisions ?? [] }) }),
+
+  imports: (): Promise<ImportBatch[]> => (isDemoMode() ? Promise.resolve(demo.imports()) : request("/imports")),
+
+  // ---- rules ---------------------------------------------------------------
+  rules: (): Promise<Rule[]> => (isDemoMode() ? Promise.resolve(demo.rules()) : request("/rules")),
+
+  createRule: (body: { pattern: string; category_id: string; name?: string; match_type?: Rule["match_type"] }): Promise<Rule> =>
+    isDemoMode() ? Promise.resolve(demo.createRule(body)) : request("/rules", { method: "POST", body: JSON.stringify(body) }),
+
+  deleteRule: (id: string): Promise<void> =>
+    isDemoMode()
+      ? Promise.resolve(demo.deleteRule(id))
+      : request(`/rules/${id}`, { method: "DELETE" }),
+
+  // ---- review --------------------------------------------------------------
+  review: (): Promise<ReviewRow[]> => (isDemoMode() ? Promise.resolve(demo.review()) : request("/transactions/review")),
+
+  bulkCategorise: (ids: string[], category_id: string): Promise<{ updated: number }> =>
+    isDemoMode()
+      ? Promise.resolve(demo.bulkCategorise(ids, category_id))
+      : request("/transactions/bulk", { method: "POST", body: JSON.stringify({ ids, category_id }) }),
 };
 

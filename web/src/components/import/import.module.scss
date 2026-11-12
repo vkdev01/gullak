@@ -1,0 +1,94 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.panel { @include m.card; padding: 20px; margin-bottom: 16px; }
+
+.head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+
+  h2 { font-size: 15px; }
+  span { font-family: t.$mono; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: t.$dim; }
+}
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+
+.field {
+  display: flex; flex-direction: column; gap: 5px; min-width: 180px; flex: 1;
+
+  label {
+    font-family: t.$mono; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: t.$dim;
+  }
+
+  select, input {
+    border: 1px solid t.$line; background: t.$card; border-radius: t.$radius-sm;
+    padding: 9px 11px; font-size: 13px; outline: none;
+
+    &:focus { border-color: t.$green; box-shadow: 0 0 0 3px rgba(31, 111, 92, 0.1); }
+  }
+}
+
+.paste {
+  margin-top: 12px;
+
+  textarea {
+    width: 100%; min-height: 150px; resize: vertical;
+    border: 1px solid t.$line; border-radius: t.$radius-sm; background: t.$card;
+    padding: 12px; font-family: t.$mono; font-size: 12px; line-height: 1.5; outline: none;
+
+    &:focus { border-color: t.$green; box-shadow: 0 0 0 3px rgba(31, 111, 92, 0.1); }
+  }
+}
+
+.hint { font-size: 11.5px; color: t.$dim; margin-top: 8px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.chip {
+  font-family: t.$mono; font-size: 10px; letter-spacing: 0.04em;
+  border-radius: 99px; padding: 3px 9px; border: 1px solid t.$line; color: t.$dim;
+
+  &.ok { background: t.$green-soft; border-color: transparent; color: t.$green; }
+  &.warn { background: t.$butter-soft; border-color: transparent; color: #8a6e22; }
+  &.muted { background: t.$sage-100; border-color: transparent; }
+}
+
+.tableWrap { overflow-x: auto; border: 1px solid t.$line; border-radius: t.$radius-sm; }
+
+.table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 640px;
+
+  th {
+    text-align: left; font-family: t.$mono; font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: t.$dim; font-weight: 500;
+    padding: 9px 12px; background: t.$sage-100; border-bottom: 1px solid t.$line;
+    white-space: nowrap;
+  }
+
+  td { padding: 8px 12px; border-bottom: 1px solid t.$line-soft; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.duplicate td { opacity: 0.55; }
+}
+
+.desc {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: t.$mono; font-size: 11px; color: t.$ink;
+}
+
+.catSelect {
+  border: 1px solid t.$line; border-radius: 99px; padding: 3px 8px;
+  font-size: 11px; background: t.$card; color: t.$ink; max-width: 140px;
+}
+
+.amount { text-align: right; @include m.figure; white-space: nowrap; }
+
+.foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin-top: 14px; flex-wrap: wrap;
+}
+
+.warnings {
+  margin: 10px 0 0; padding-left: 18px; font-size: 11.5px; color: t.$dim;
+
+  li { margin-bottom: 2px; }
+}
