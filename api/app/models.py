@@ -87,6 +87,7 @@ class Transaction(Base):
     needs_review: Mapped[bool] = mapped_column(default=False, index=True)
     dedupe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     import_batch_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    transfer_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     account = relationship("Account")
@@ -154,3 +155,42 @@ class ImportRow(Base):
     dedupe_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
     is_duplicate: Mapped[bool] = mapped_column(default=False)
     status: Mapped[str] = mapped_column(String(12), default="ready")  # ready | review | duplicate | imported | skipped
+
+
+class Budget(Base):
+    """A cap for a category, or an envelope across several, for a repeating period."""
+
+    __tablename__ = "budgets"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    household_id: Mapped[str] = mapped_column(ForeignKey("households.id", ondelete="CASCADE"), index=True)
+    category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    period: Mapped[str] = mapped_column(String(12), default="monthly")  # monthly | weekly
+    amount: Mapped[int] = mapped_column(BigInteger)  # paise
+    rollover: Mapped[bool] = mapped_column(default=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_on: Mapped[date] = mapped_column(Date, default=date.today)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Goal(Base):
+    __tablename__ = "goals"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    household_id: Mapped[str] = mapped_column(ForeignKey("households.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    target: Mapped[int] = mapped_column(BigInteger)  # paise
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    monthly_target: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(12), default="active")  # active | paused | achieved
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class GoalContribution(Base):
+    __tablename__ = "goal_contributions"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    goal_id: Mapped[str] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"), index=True)
+    amount: Mapped[int] = mapped_column(BigInteger)
+    contributed_on: Mapped[date] = mapped_column(Date, default=date.today)
+    transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+    note: Mapped[str] = mapped_column(String(200), default="")

@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,10 +8,21 @@ from sqlalchemy.orm import Session, joinedload
 from ..db import get_db
 from ..deps import current_household_id
 from ..models import Account, Category, Transaction
-from ..schemas import BulkCategoriseIn, BulkCategoriseOut, ReviewRowOut, SummaryOut, TransactionIn, TransactionOut
+from ..schemas import (
+    BulkCategoriseIn,
+    BulkCategoriseOut,
+    GroupRow,
+    ReviewRowOut,
+    SummaryOut,
+    TransactionIn,
+    TransactionOut,
+    TransferIn,
+    TransferOut,
+)
 from ..services import categorise as cat
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+transfers = APIRouter(prefix="/transfers", tags=["transfers"])
 
 
 def _out(t: Transaction) -> TransactionOut:
@@ -89,7 +101,11 @@ def summary(hid: str = Depends(current_household_id), db: Session = Depends(get_
     month = date.today().replace(day=1)
     rows = db.execute(
         select(Transaction.direction, func.coalesce(func.sum(Transaction.amount), 0), func.count())
-        .where(Transaction.household_id == hid, Transaction.occurred_at >= month)
+        .where(
+            Transaction.household_id == hid,
+            Transaction.occurred_at >= month,
+            Transaction.transfer_id.is_(None),
+        )
         .group_by(Transaction.direction)
     ).all()
     spent = sum(amt for d, amt, _ in rows if d == "debit")
@@ -143,3 +159,88 @@ def bulk_categorise(body: BulkCategoriseIn, hid: str = Depends(current_household
         t.needs_review = False
     db.commit()
     return BulkCategoriseOut(updated=len(rows))
+
+
+@router.get("/group", response_model=list[GroupRow])
+def group_transactions(
+    by: str = Query("category", pattern="^(category|day|merchant)$"),
+    start: date | None = None,
+    end: date | None = None,
+    hid: str = Depends(current_household_id),
+    db: Session = Depends(get_db),
+):
+    """Spend grouped for charts. Transfers are excluded — moving money is not spending."""
+    stmt = (
+        select(Transaction)
+        .options(joinedload(Transaction.category))
+        .where(
+            Transaction.household_id == hid,
+            Transaction.direction == "debit",
+            Transaction.transfer_id.is_(None),
+        )
+    )
+    if start:
+        stmt = stmt.where(Transaction.occurred_at >= start)
+    if end:
+        stmt = stmt.where(Transaction.occurred_at <= end)
+
+    buckets: dict[str, dict] = {}
+    for row in db.scalars(stmt).all():
+        if by == "category":
+            key = row.category_id or "uncategorised"
+            label = row.category.name if row.category else "Uncategorised"
+        elif by == "merchant":
+            key = row.merchant
+            label = row.merchant
+        else:
+            key = row.occurred_at.isoformat()
+            label = row.occurred_at.isoformat()
+
+        bucket = buckets.setdefault(key, {"key": key, "label": label, "total": 0, "count": 0})
+        bucket["total"] += row.amount
+        bucket["count"] += 1
+
+    rows = [GroupRow(**b) for b in buckets.values()]
+    return sorted(rows, key=lambda r: r.key)
+
+
+@transfers.post("", response_model=TransferOut, status_code=201)
+def create_transfer(body: TransferIn, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """Two legs, one id. A card payment must never look like spending."""
+    if body.from_account_id == body.to_account_id:
+        raise HTTPException(status_code=422, detail="Pick two different accounts")
+
+    source = db.get(Account, body.from_account_id)
+    target = db.get(Account, body.to_account_id)
+    for account in (source, target):
+        if not account or account.household_id != hid:
+            raise HTTPException(status_code=404, detail="Account not found in this household")
+
+    transfer_id = uuid.uuid4().hex
+    out_leg = Transaction(
+        household_id=hid,
+        account_id=source.id,
+        direction="debit",
+        amount=body.amount,
+        occurred_at=body.occurred_at,
+        merchant=f"Transfer to {target.name}",
+        note=body.note,
+        source="manual",
+        confidence=1.0,
+        transfer_id=transfer_id,
+    )
+    in_leg = Transaction(
+        household_id=hid,
+        account_id=target.id,
+        direction="credit",
+        amount=body.amount,
+        occurred_at=body.occurred_at,
+        merchant=f"Transfer from {source.name}",
+        note=body.note,
+        source="manual",
+        confidence=1.0,
+        transfer_id=transfer_id,
+    )
+    db.add_all([out_leg, in_leg])
+    db.commit()
+    return TransferOut(transfer_id=transfer_id, from_transaction_id=out_leg.id, to_transaction_id=in_leg.id)

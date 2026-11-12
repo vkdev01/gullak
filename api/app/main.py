@@ -50,5 +50,7 @@ app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
+app.include_router(transactions.transfers)
 app.include_router(imports.router)
 app.include_router(rules.router)
+
