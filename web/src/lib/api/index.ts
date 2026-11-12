@@ -2,7 +2,13 @@ import { demo } from "./demo";
 import { hasApi, getToken, request, setToken } from "./client";
 import type {
   Account,
+  Budget,
+  BudgetStatus,
   Category,
+  Dashboard,
+  Goal,
+  GroupRow,
+  Series,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -12,7 +18,24 @@ import type {
   Txn,
 } from "./types";
 
-export type { Account, Category, ImportBatch, ImportDecision, ImportPreview, ImportRow, ReviewRow, Rule, Summary, Txn } from "./types";
+export type {
+  Account,
+  Budget,
+  BudgetStatus,
+  Category,
+  Dashboard,
+  Goal,
+  GroupRow,
+  ImportBatch,
+  ImportDecision,
+  ImportPreview,
+  ImportRow,
+  ReviewRow,
+  Rule,
+  Series,
+  Summary,
+  Txn,
+} from "./types";
 export { getToken, setToken };
 
 /**
@@ -96,5 +119,33 @@ export const api = {
     isDemoMode()
       ? Promise.resolve(demo.bulkCategorise(ids, category_id))
       : request("/transactions/bulk", { method: "POST", body: JSON.stringify({ ids, category_id }) }),
+
+  // ---- planning ------------------------------------------------------------
+  dashboard: (): Promise<Dashboard> => (isDemoMode() ? Promise.resolve(demo.dashboard()) : request("/dashboard")),
+
+  budgets: (): Promise<Budget[]> => (isDemoMode() ? Promise.resolve(demo.budgets()) : request("/budgets")),
+
+  createBudget: (body: { category_id?: string | null; amount: number; rollover?: boolean; name?: string }): Promise<Budget> =>
+    isDemoMode() ? Promise.resolve(demo.createBudget(body)) : request("/budgets", { method: "POST", body: JSON.stringify(body) }),
+
+  budgetStatus: (): Promise<BudgetStatus[]> =>
+    isDemoMode() ? Promise.resolve(demo.budgetStatus()) : request("/budgets/status"),
+
+  goals: (): Promise<Goal[]> => (isDemoMode() ? Promise.resolve(demo.goals()) : request("/goals")),
+
+  createGoal: (body: { name: string; target: number; monthly_target?: number | null }): Promise<Goal> =>
+    isDemoMode() ? Promise.resolve(demo.createGoal(body) as Goal) : request("/goals", { method: "POST", body: JSON.stringify(body) }),
+
+  contribute: (goalId: string, amount: number): Promise<Goal> =>
+    isDemoMode()
+      ? Promise.resolve(demo.contribute(goalId, amount) as Goal)
+      : request(`/goals/${goalId}/contributions`, { method: "POST", body: JSON.stringify({ amount }) }),
+
+  recurring: (): Promise<Series[]> => (isDemoMode() ? Promise.resolve(demo.recurring()) : request("/recurring")),
+
+  group: (by: "category" | "day" | "merchant", start?: string, end?: string): Promise<GroupRow[]> =>
+    isDemoMode()
+      ? Promise.resolve([])
+      : request(`/transactions/group?by=${by}${start ? `&start=${start}` : ""}${end ? `&end=${end}` : ""}`),
 };
 

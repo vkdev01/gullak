@@ -85,3 +85,82 @@ export type ImportDecision = {
 };
 
 export type ReviewRow = Txn & { suggested_category_id: string | null };
+
+export type Budget = {
+  id: string;
+  name: string;
+  category_id: string | null;
+  period: string;
+  amount: number;
+  rollover: boolean;
+  is_active: boolean;
+};
+
+export type BudgetStatus = {
+  id: string;
+  name: string;
+  category_id: string | null;
+  category_name: string | null;
+  period_start: string;
+  period_end: string;
+  allocated: number;
+  carried: number;
+  spent: number;
+  remaining: number;
+  used_pct: number;
+  elapsed_pct: number;
+  status: "on_track" | "at_risk" | "over";
+  rollover: boolean;
+};
+
+export type Goal = {
+  id: string;
+  name: string;
+  target: number;
+  contributed: number;
+  progress_pct: number;
+  monthly_target: number | null;
+  target_date: string | null;
+  projected_finish: string | null;
+  status: string;
+};
+
+export type Insight = {
+  kind: string;
+  severity: string;
+  title: string;
+  fact_pack: Record<string, unknown>;
+};
+
+export type DueSoon = { merchant: string; amount: number; due: string; cadence: string };
+
+export type Dashboard = {
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  days_left: number;
+  elapsed_pct: number;
+  income: number;
+  spent: number;
+  committed: number;
+  budgeted_remaining: number;
+  free_to_spend: number;
+  budgets: BudgetStatus[];
+  goals: Goal[];
+  due_soon: DueSoon[];
+  sparkline: { date: string; amount: number }[];
+  insights: Insight[];
+};
+
+export type Series = {
+  merchant: string;
+  cadence: string;
+  occurrences: number;
+  expected_amount: number;
+  last_seen: string;
+  next_due: string;
+  is_subscription: boolean;
+  price_change: number;
+};
+
+export type GroupRow = { key: string; label: string; total: number; count: number };
