@@ -10,8 +10,16 @@ type Props = {
   onRecategorise: (id: string, categoryId: string) => void;
 };
 
+const SOURCE_LABEL: Record<string, string> = {
+  import: "imported",
+  seed: "seeded",
+  manual: "manual",
+  rule: "rule",
+};
+
 export default function LedgerRow({ transaction, categories, onRecategorise }: Props) {
   const incoming = transaction.direction === "credit";
+  const source = SOURCE_LABEL[transaction.source] ?? transaction.source;
 
   return (
     <div className={s.row}>
@@ -21,7 +29,7 @@ export default function LedgerRow({ transaction, categories, onRecategorise }: P
 
       <div className={s.main}>
         <b>{transaction.merchant}</b>
-        <span>{transaction.source === "seed" ? "imported" : "manual"}</span>
+        <span>{source}</span>
       </div>
 
       <div className={s.category}>
