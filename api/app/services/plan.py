@@ -214,6 +214,21 @@ def sparkline(rows: list[Transaction], start: date, end: date) -> list[dict]:
     return out
 
 
+def _rupees(paise: int) -> str:
+    """Format paise for a sentence. ₹1,24,500 — Indian grouping, no decimals."""
+    rupees = paise // 100
+    text = f"{rupees:,}"
+    # Indian digit grouping: last three, then pairs
+    head, tail = text[:-3], text[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return "₹" + ",".join(groups + [tail])
+
+
 def month_insights(rows: list[Transaction], prev_rows: list[Transaction], categories: dict[str, str]) -> list[dict]:
     """Category drift against a trailing median. Deterministic, with a fact pack."""
     current: dict[str, int] = {}
@@ -242,7 +257,7 @@ def month_insights(rows: list[Transaction], prev_rows: list[Transaction], catego
             {
                 "kind": "month_delta",
                 "severity": "warn" if delta > 0 else "info",
-                "title": f"{categories.get(key, 'Uncategorised')} is {'up' if delta > 0 else 'down'} {abs(delta)}",
+                "title": f"{categories.get(key, 'Uncategorised')} is {'up' if delta > 0 else 'down'} {_rupees(abs(delta))}",
                 "fact_pack": {
                     "query": "sum(transactions.amount) group by category_id",
                     "category_id": key,
@@ -293,7 +308,13 @@ def build_dashboard(db: Session, household_id: str, anchor: int, today: date, se
     prev_start, prev_end = previous_period(anchor, start)
 
     rows = spend_rows(db, household_id, start, end)
-    prev_rows = spend_rows(db, household_id, prev_start, prev_end)
+    # Compare like with like: the same number of days into the previous period,
+    # otherwise a half-finished month always reads as "down".
+    elapsed_days = (min(today, end) - start).days
+    prev_rows = [
+        r for r in spend_rows(db, household_id, prev_start, prev_end)
+        if r.occurred_at <= prev_start + timedelta(days=elapsed_days)
+    ]
 
     income = sum(
         t.amount

@@ -186,8 +186,11 @@ def test_every_insight_has_a_fact_pack(household):
     c, headers, account_id = household
     groceries = _category(c, headers, "Groceries")
 
-    last_month = (date.today().replace(day=1) - timedelta(days=5)).isoformat()
-    _tx(c, headers, account_id, 100_000, last_month, "BigBasket", groceries["id"])
+    # same number of days into the previous period, because that is what the
+    # comparison now measures — a half-finished month must not read as "down"
+    prev_start = (date.today().replace(day=1) - timedelta(days=1)).replace(day=1)
+    prev_day = (prev_start + timedelta(days=2)).isoformat()
+    _tx(c, headers, account_id, 100_000, prev_day, "BigBasket", groceries["id"])
     _tx(c, headers, account_id, 400_000, date.today().isoformat(), "BigBasket", groceries["id"])
 
     d = c.get("/dashboard", headers=headers).json()
