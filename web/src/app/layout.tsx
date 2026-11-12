@@ -3,7 +3,7 @@ import "@/styles/globals.scss";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Gullak — MVP 0",
+  title: "Gullak",
   description: "A ledger detailed enough for an accountant.",
 };
 

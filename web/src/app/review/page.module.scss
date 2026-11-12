@@ -1,0 +1,20 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.page {
+  max-width: 1080px; margin: 0 auto; padding: 26px 22px 90px;
+
+  @include m.mq(md) { padding: 18px 14px 96px; }
+}
+
+.header {
+  margin-bottom: 18px;
+
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  p { color: t.$dim; font-size: 13px; max-width: 66ch; margin: 0; }
+}
+
+.error {
+  background: t.$clay-soft; color: #8c4a2c; border-radius: t.$radius-sm;
+  padding: 10px 14px; font-size: 12.5px; margin-bottom: 14px;
+}

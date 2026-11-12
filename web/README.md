@@ -15,13 +15,17 @@ src/
 │   ├── layout/          AppShell — wordmark, nav, session chrome
 │   ├── ui/              Button, Card, Field, StatCard, EmptyState
 │   ├── ledger/          QuickAddBar, LedgerToolbar, LedgerList, DayGroup, LedgerRow
-│   ├── accounts/        AccountList
-│   └── auth/            AuthForm
-├── hooks/               useAccounts, useCategories, useLedger, useQuickAdd
+│   ├── import/          StatementForm, ImportPreview, ImportResult
+│   ├── review/          ReviewQueue
+│   └── accounts/        AccountList
+├── hooks/               useAccounts, useCategories, useLedger, useQuickAdd,
+│                        useImport, useReview
 ├── lib/
 │   ├── api/             client (HTTP) · demo (localStorage) · types · index (facade)
 │   ├── format.ts        money, dates
-│   └── parse.ts         "320 swiggy yesterday"
+│   ├── parse.ts         "320 swiggy yesterday"
+│   ├── csv.ts           statement parsing for the demo transport
+│   └── merchants.ts     compact merchant seed list for the demo transport
 ├── styles/              _tokens · _mixins · globals
 └── config/              site metadata and nav items
 ```

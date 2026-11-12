@@ -9,7 +9,7 @@ from .db import Base, engine, get_db
 from .deps import current_household_id
 from .models import User
 from .deps import current_user
-from .routers import accounts, auth, categories, transactions
+from .routers import accounts, auth, categories, imports, rules, transactions
 from .seed import seed_demo
 
 @asynccontextmanager
@@ -50,3 +50,5 @@ app.include_router(auth.router)
 app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
+app.include_router(imports.router)
+app.include_router(rules.router)

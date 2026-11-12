@@ -1,7 +1,7 @@
 # Gullak
 
-An AI-agentic savings platform. This repository is **MVP 0** — the ledger skeleton: accounts,
-categories, transactions and the screens to work with them, before any agent exists.
+An AI-agentic savings platform. This repository carries **MVP 0 and MVP 1**: the ledger skeleton,
+and the statement import that makes the ledger trustworthy.
 
 **Live demo:** https://vkdev01.github.io/gullak/ — the Next.js app exported as static files and
 running entirely in your browser (no server, no signup).
@@ -13,17 +13,17 @@ gullak/
 ├── web/                    the Next.js app — everything front end lives here
 │   ├── src/
 │   │   ├── app/            routes only (App Router)
-│   │   ├── components/     layout/ · ui/ · ledger/ · accounts/ · auth/
+│   │   ├── components/     layout/ · ui/ · ledger/ · import/ · review/ · accounts/ · auth/
 │   │   ├── hooks/          data and UI state, one hook per concern
-│   │   ├── lib/            api/ (client, demo, types) · format · parse
+│   │   ├── lib/            api/ (client, demo, types) · format · parse · csv · merchants
 │   │   ├── styles/         tokens, mixins, globals
 │   │   └── config/         site metadata, navigation
 │   ├── next.config.mjs     static export + basePath
 │   └── package.json
 ├── api/                    the FastAPI service
-│   ├── app/                main, models, schemas, security, routers/, seed
-│   ├── migrations/         Postgres schema, including row-level security
-│   └── tests/              smoke test = the MVP 0 exit criteria
+│   ├── app/                main, models, schemas, security, routers/, services/, seed
+│   ├── migrations/         001_init · 002_mvp1, including row-level security
+│   └── tests/              smoke + import suites = the MVP 0 and MVP 1 exit criteria
 ├── prototype/              single-file HTML prototype of the same screens
 ├── docker-compose.yml      postgres + api + web
 └── .github/workflows/      pages.yml (deploy) · ci.yml (build + tests)
@@ -66,15 +66,22 @@ cd web && npm run build                                  # typecheck + static ex
 
 CI runs both on every push and pull request.
 
-## The MVP 0 exit test
+## What each milestone proves
 
-> You can enter a real month in under ten minutes, and a second account can never see the first
-> household's rows.
+**MVP 0 — the ledger you can enter.** Accounts, categories, transactions, quick add.
+Exit test: *you can enter a real month in under ten minutes, and a second account can never see the
+first household's rows.*
 
-The second half is enforced three times over: the API derives the household from the caller's
-membership rather than from the request, every query filters on it, and `api/migrations/001_init.sql`
-enables row-level security so the database refuses cross-tenant reads even if application code
-forgets.
+**MVP 1 — the ledger you can trust.** Statement import in two phases, a seed list of Indian
+merchants, user rules that beat the heuristics, and a review queue for whatever is left.
+Exit test: *re-importing the same statement imports zero rows, at least 90% of rows are
+auto-categorised, and the rest can be fixed in bulk.*
+
+Tenant isolation is enforced three times over: the API derives the household from the caller's
+membership rather than from the request, every query filters on it, and the migrations enable
+row-level security so the database refuses cross-tenant reads even if application code forgets.
+Duplicate imports are guarded the same way — the preview flags them, the commit skips them, and a
+unique partial index on `(account_id, dedupe_hash)` is the last line of defence.
 
 ## Working on this repo
 
@@ -96,7 +103,8 @@ Push to `main` → `pages.yml` builds `web/` as a static export with the base pa
 `actions/configure-pages` and publishes it to Pages. To host elsewhere, run `npm run build` in
 `web/` and serve `web/out/`; set `NEXT_PUBLIC_API_URL` at build time to point the app at a live API.
 
-## Deliberately not in MVP 0
+## Deliberately not yet
 
-Statement import, budgets, goals, insights, transfers, attachments, and every line of agent code.
-Those arrive in MVP 1 through MVP 5; the roadmap lives in the planning documents.
+PDF statements, SMS parsing, transfers as paired legs, splits, attachments, budgets, goals,
+insights, and every line of agent code. Those arrive in MVP 2 through MVP 5; the roadmap lives in
+the planning documents.
