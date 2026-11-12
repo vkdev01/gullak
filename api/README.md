@@ -44,6 +44,13 @@ psql "$DATABASE_URL" -f migrations/001_init.sql
 | GET | `/transactions/review` | rows the importer was unsure about, with a suggestion |
 | POST | `/transactions/bulk` | assign one category to many rows |
 | GET/POST/DELETE | `/rules` | user rules that win over the merchant seed list |
+| GET/POST/PATCH/DELETE | `/budgets` | caps per category, with optional rollover |
+| GET | `/budgets/status` | spent, remaining and pace for the current period |
+| GET/POST | `/goals` · `POST /goals/{id}/contributions` | targets and progress |
+| POST | `/transfers` | two legs, one id, excluded from every spend total |
+| GET | `/transactions/group?by=category\|day\|merchant` | spend for charts |
+| GET | `/dashboard` | the whole home screen in one round trip |
+| GET | `/recurring` | detected series with next due and price changes |
 
 ## How a statement becomes ledger rows
 
@@ -63,6 +70,23 @@ CSV text ──▶ services/csv_import.build_candidates ──▶ ParsedRow[]
 
 `services/merchants.py` is the seed list — canonical name, category, and the aliases that appear
 in real narrations. It is data, not logic: extend it and every import gets better.
+
+## How the planning numbers are computed
+
+```
+households.cycle_start_day ──▶ services/periods.period_bounds
+                                    │  25 Oct → 24 Nov for a salary on the 25th
+                                    ▼
+transactions (debits, transfers excluded) ──▶ budgets: spent, carried, remaining
+                                    │
+                     pace = spent/allocated  vs  elapsed/total
+                                    ▼
+        free to spend = income − committed − budgeted remaining
+```
+
+Committed comes from `services/recurring`, which only claims a series when there are three
+occurrences, a stable interval and an amount that does not swing more than 25%. Insights carry a
+fact pack — the query, the filters, the numbers — so the UI can open "how this was calculated".
 
 Every query filters on `household_id` from the caller's membership. The `accounts` and
 `transactions` routes also verify the referenced row belongs to the caller's household, so a

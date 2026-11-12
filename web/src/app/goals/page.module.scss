@@ -1,0 +1,42 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.page { max-width: 1000px; margin: 0 auto; padding: 26px 22px 90px; @include m.mq(md) { padding: 18px 14px 96px; } }
+
+.header {
+  margin-bottom: 18px;
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  p { color: t.$dim; font-size: 13px; max-width: 68ch; margin: 0; }
+}
+
+.list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+.card { @include m.card; padding: 16px 18px; }
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  b { font-size: 14px; font-weight: 500; display: block; }
+  span { font-family: t.$mono; font-size: 11px; color: t.$dim; }
+}
+
+.projection { font-family: t.$mono; font-size: 10px; color: t.$dim; white-space: nowrap; }
+
+.bar { height: 8px; border-radius: 99px; background: t.$sage-100; overflow: hidden; i { display: block; height: 100%; border-radius: 99px; background: t.$green; } }
+
+.actions { display: flex; gap: 8px; margin-top: 12px; }
+
+.form {
+  @include m.card;
+  padding: 18px 20px;
+
+  h2 { font-size: 14px; margin-bottom: 12px; }
+}
+
+.formRow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+.empty { font-size: 13px; color: t.$dim; }

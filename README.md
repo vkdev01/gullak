@@ -1,7 +1,8 @@
 # Gullak
 
-An AI-agentic savings platform. This repository carries **MVP 0 and MVP 1**: the ledger skeleton,
-and the statement import that makes the ledger trustworthy.
+An AI-agentic savings platform. This repository carries **MVP 0, MVP 1 and MVP 2**: the ledger
+skeleton, the statement import that makes it trustworthy, and the planning layer that says whether
+you are on track.
 
 **Live demo:** https://vkdev01.github.io/gullak/ — the Next.js app exported as static files and
 running entirely in your browser (no server, no signup).
@@ -13,9 +14,9 @@ gullak/
 ├── web/                    the Next.js app — everything front end lives here
 │   ├── src/
 │   │   ├── app/            routes only (App Router)
-│   │   ├── components/     layout/ · ui/ · ledger/ · import/ · review/ · accounts/ · auth/
+│   │   ├── components/     layout/ · ui/ · dashboard/ · ledger/ · import/ · review/ · accounts/
 │   │   ├── hooks/          data and UI state, one hook per concern
-│   │   ├── lib/            api/ (client, demo, types) · format · parse · csv · merchants
+│   │   ├── lib/            api/ (client, demo, types) · format · parse · csv · merchants · plan · recurring
 │   │   ├── styles/         tokens, mixins, globals
 │   │   └── config/         site metadata, navigation
 │   ├── next.config.mjs     static export + basePath
@@ -77,6 +78,12 @@ merchants, user rules that beat the heuristics, and a review queue for whatever 
 Exit test: *re-importing the same statement imports zero rows, at least 90% of rows are
 auto-categorised, and the rest can be fixed in bulk.*
 
+**MVP 2 — the plan.** Budgets on salary-anchored periods with pace and rollover, goals with a
+projected finish, recurring detection, transfers as paired legs, and a dashboard whose every
+number is arithmetic over rows.
+Exit test: *budget status matches a hand-built spreadsheet to the paisa, and every dashboard
+number opens to the transactions behind it.*
+
 Tenant isolation is enforced three times over: the API derives the household from the caller's
 membership rather than from the request, every query filters on it, and the migrations enable
 row-level security so the database refuses cross-tenant reads even if application code forgets.
@@ -105,6 +112,5 @@ Push to `main` → `pages.yml` builds `web/` as a static export with the base pa
 
 ## Deliberately not yet
 
-PDF statements, SMS parsing, transfers as paired legs, splits, attachments, budgets, goals,
-insights, and every line of agent code. Those arrive in MVP 2 through MVP 5; the roadmap lives in
-the planning documents.
+PDF statements, SMS parsing, splits, attachments, chat, model-written narration and proactive
+notifications. Those arrive in MVP 3 through MVP 5; the roadmap lives in the planning documents.

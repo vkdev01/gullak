@@ -157,3 +157,142 @@ class BulkCategoriseOut(BaseModel):
 
 class ReviewRowOut(TransactionOut):
     suggested_category_id: str | None = None
+
+
+# ---------------------------------------------------------------- planning
+
+class BudgetIn(BaseModel):
+    name: str = ""
+    category_id: str | None = None
+    period: str = "monthly"
+    amount: int = Field(gt=0)  # paise
+    rollover: bool = False
+
+
+class BudgetPatch(BaseModel):
+    name: str | None = None
+    amount: int | None = Field(default=None, gt=0)
+    rollover: bool | None = None
+    is_active: bool | None = None
+
+
+class BudgetOut(BaseModel):
+    id: str
+    name: str
+    category_id: str | None
+    period: str
+    amount: int
+    rollover: bool
+    is_active: bool
+
+
+class BudgetStatusOut(BaseModel):
+    id: str
+    name: str
+    category_id: str | None
+    category_name: str | None
+    period_start: date
+    period_end: date
+    allocated: int
+    carried: int
+    spent: int
+    remaining: int
+    used_pct: float
+    elapsed_pct: float
+    status: str
+    rollover: bool
+
+
+class GoalIn(BaseModel):
+    name: str
+    target: int = Field(gt=0)
+    target_date: date | None = None
+    monthly_target: int | None = Field(default=None, gt=0)
+    account_id: str | None = None
+
+
+class ContributionIn(BaseModel):
+    amount: int = Field(gt=0)
+    contributed_on: date | None = None
+    note: str = ""
+
+
+class GoalOut(BaseModel):
+    id: str
+    name: str
+    target: int
+    contributed: int
+    progress_pct: float
+    monthly_target: int | None
+    target_date: date | None
+    projected_finish: date | None
+    status: str
+
+
+class SeriesOut(BaseModel):
+    merchant: str
+    cadence: str
+    occurrences: int
+    expected_amount: int
+    last_seen: date
+    next_due: date
+    is_subscription: bool
+    price_change: int
+
+
+class DueSoonOut(BaseModel):
+    merchant: str
+    amount: int
+    due: date
+    cadence: str
+
+
+class InsightOut(BaseModel):
+    kind: str
+    severity: str
+    title: str
+    fact_pack: dict
+
+
+class SparkPoint(BaseModel):
+    date: str
+    amount: int
+
+
+class DashboardOut(BaseModel):
+    period_start: date
+    period_end: date
+    period_label: str
+    days_left: int
+    elapsed_pct: float
+    income: int
+    spent: int
+    committed: int
+    budgeted_remaining: int
+    free_to_spend: int
+    budgets: list[BudgetStatusOut]
+    goals: list[GoalOut]
+    due_soon: list[DueSoonOut]
+    sparkline: list[SparkPoint]
+    insights: list[InsightOut]
+
+
+class TransferIn(BaseModel):
+    from_account_id: str
+    to_account_id: str
+    amount: int = Field(gt=0)
+    occurred_at: date
+    note: str = ""
+
+
+class TransferOut(BaseModel):
+    transfer_id: str
+    from_transaction_id: str
+    to_transaction_id: str
+
+
+class GroupRow(BaseModel):
+    key: str
+    label: str
+    total: int
+    count: int

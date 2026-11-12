@@ -1,89 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useDashboard } from "@/hooks/useDashboard";
 import { isDemoMode } from "@/lib/api";
-import { money } from "@/lib/format";
-import { useAccounts } from "@/hooks/useAccounts";
-import { useCategories } from "@/hooks/useCategories";
-import { useLedger } from "@/hooks/useLedger";
-import LedgerList from "@/components/ledger/LedgerList";
-import LedgerToolbar from "@/components/ledger/LedgerToolbar";
-import QuickAddBar from "@/components/ledger/QuickAddBar";
-import StatCard from "@/components/ui/StatCard";
+import BudgetStrip from "@/components/dashboard/BudgetStrip";
+import DueSoon from "@/components/dashboard/DueSoon";
+import GoalsRail from "@/components/dashboard/GoalsRail";
+import HeroCard from "@/components/dashboard/HeroCard";
+import InsightList from "@/components/dashboard/InsightList";
+import SpendChart from "@/components/dashboard/SpendChart";
+import Button from "@/components/ui/Button";
 import s from "./page.module.scss";
 
-export default function LedgerPage() {
-  const { accounts } = useAccounts();
-  const { leaves } = useCategories();
-  const ledger = useLedger();
-  const [seeding, setSeeding] = useState(false);
+export default function DashboardPage() {
+  const { dashboard, loading, error } = useDashboard();
 
-  async function seed() {
-    setSeeding(true);
-    try {
-      await ledger.seed();
-    } finally {
-      setSeeding(false);
-    }
-  }
-
-  if (ledger.error) {
+  if (error) {
     return (
       <main className={s.page}>
-        <h1 className={s.errorTitle}>Could not reach the API</h1>
-        <p className="muted small">{ledger.error}</p>
-        <p className={`small muted ${s.hint}`}>
-          Static demo? Leave <code>NEXT_PUBLIC_API_URL</code> unset. Running locally? Start the FastAPI
-          service in <code>api/</code> first.
+        <h1 className={s.title}>Could not reach the API</h1>
+        <p className="muted small">{error}</p>
+        <p className="small muted" style={{ marginTop: 12 }}>
+          Static demo? Leave <code>NEXT_PUBLIC_API_URL</code> unset. Running locally? Start the FastAPI service in{" "}
+          <code>api/</code> first.
         </p>
       </main>
     );
   }
 
+  if (loading || !dashboard) {
+    return (
+      <main className={s.page}>
+        <p className="small muted">Loading your period…</p>
+      </main>
+    );
+  }
+
+  const isEmpty = dashboard.spent === 0 && dashboard.income === 0;
+
   return (
     <main className={s.page}>
-      <section className={s.strip}>
-        <StatCard
-          label="Spent this month"
-          value={money(ledger.summary?.spent ?? 0)}
-          foot={`${ledger.summary?.count ?? 0} transactions`}
-        />
-        <StatCard label="Income" value={money(ledger.summary?.income ?? 0)} foot="month to date" />
-        <StatCard
-          label="Net"
-          value={money(ledger.summary?.net ?? 0)}
-          foot="income minus spend"
-          negative={(ledger.summary?.net ?? 0) < 0}
-        />
-      </section>
+      <div className={s.topline}>
+        <div>
+          <h1 className={s.title}>Dashboard</h1>
+          <p className={s.sub}>
+            {dashboard.period_label} · {dashboard.days_left} days left · {dashboard.elapsed_pct}% elapsed
+          </p>
+        </div>
+        <div className={s.actions}>
+          <Link href="/import/">
+            <Button variant="ghost" size="sm">
+              Import a statement
+            </Button>
+          </Link>
+          <Link href="/ledger/">
+            <Button size="sm">Open the ledger</Button>
+          </Link>
+        </div>
+      </div>
 
-      <QuickAddBar
-        onAdd={({ amount, merchant, date }) =>
-          ledger.add({ accountId: ledger.filters.accountId || accounts[0]?.id, amount, merchant, date })
-        }
-      />
+      {isEmpty && (
+        <p className={s.banner}>
+          This period is empty. Import a statement or load demo data on the ledger to see the dashboard with real
+          numbers.
+        </p>
+      )}
 
-      <LedgerToolbar
-        accounts={accounts}
-        filters={ledger.filters}
-        onFiltersChange={ledger.setFilters}
-        onSeed={seed}
-        seeding={seeding}
-      />
+      <div className={s.grid}>
+        <div className={s.span8}>
+          <HeroCard data={dashboard} />
+        </div>
+        <div className={s.span4}>
+          <GoalsRail data={dashboard} />
+        </div>
 
-      <LedgerList
-        days={ledger.days}
-        categories={leaves}
-        hasTransactions={ledger.transactions.length > 0}
-        onRecategorise={ledger.recategorise}
-        onSeed={seed}
-        seeding={seeding}
-      />
+        <div className={s.span8}>
+          <SpendChart data={dashboard} />
+        </div>
+        <div className={s.span4}>
+          <DueSoon data={dashboard} />
+        </div>
+
+        <div className={s.span12}>
+          <BudgetStrip data={dashboard} />
+        </div>
+
+        <div className={s.span12}>
+          <InsightList data={dashboard} />
+        </div>
+      </div>
 
       {isDemoMode() && (
         <p className={s.note}>
-          Demo build — everything lives in this browser. Run the FastAPI service and set
-          <code> NEXT_PUBLIC_API_URL </code> to use the real backend.
+          Demo build — everything lives in this browser. Run the FastAPI service and set{" "}
+          <code>NEXT_PUBLIC_API_URL</code> to use the real backend.
         </p>
       )}
     </main>

@@ -8,9 +8,15 @@
  */
 import { buildCandidates, dedupeHash, type Mapping } from "../csv";
 import { matchMerchant } from "../merchants";
+import { detectSeries } from "../recurring";
+import { daysBetween, elapsedFraction, periodBounds, periodLabel, previousPeriod, toISO } from "../plan";
 import type {
   Account,
+  Budget,
+  BudgetStatus,
   Category,
+  Dashboard,
+  Goal,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -25,13 +31,15 @@ const KEY = "gullak.static.v2";
 const REVIEW_THRESHOLD = 0.7;
 
 type DB = {
-  household: { id: string; name: string; currency: string };
+  household: { id: string; name: string; currency: string; cycle_start_day: number };
   accounts: Account[];
   categories: Category[];
   transactions: Txn[];
   rules: Rule[];
   batches: ImportBatch[];
   rows: ImportRow[];
+  budgets: Budget[];
+  goals: (Goal & { contributions: { amount: number; on: string }[] })[];
 };
 
 const uid = () => "id-" + Math.random().toString(36).slice(2, 10);
@@ -85,7 +93,7 @@ function blank(): DB {
     kids.forEach((k) => cats.push({ id: uid(), parent_id: pid, name: k, kind: parent === "Income" ? "income" : "expense", colour }));
   });
   return {
-    household: { id: hid, name: "Demo household", currency: "INR" },
+    household: { id: hid, name: "Demo household", currency: "INR", cycle_start_day: 1 },
     accounts: [
       { id: uid(), name: "HDFC Savings", type: "bank", institution: "HDFC", masked_number: "8842", opening_balance: 4_250_000, balance: 4_250_000 },
       { id: uid(), name: "HDFC Credit Card", type: "credit_card", institution: "HDFC", masked_number: "4412", opening_balance: 0, balance: 0 },
@@ -96,6 +104,8 @@ function blank(): DB {
     rules: [],
     batches: [],
     rows: [],
+    budgets: [],
+    goals: [],
   };
 }
 
@@ -434,6 +444,205 @@ export const demo = {
     persist();
     return { updated };
   },
+
+  budgets: () => db().budgets,
+
+  createBudget: (input: { category_id?: string | null; amount: number; rollover?: boolean; name?: string }) => {
+    const d = db();
+    const budget: Budget = {
+      id: uid(),
+      name: input.name ?? d.categories.find((c) => c.id === input.category_id)?.name ?? "Envelope",
+      category_id: input.category_id ?? null,
+      period: "monthly",
+      amount: input.amount,
+      rollover: input.rollover ?? false,
+      is_active: true,
+    };
+    d.budgets.push(budget);
+    persist();
+    return budget;
+  },
+
+  budgetStatus: (): BudgetStatus[] => {
+    const d = db();
+    const anchor = d.household.cycle_start_day;
+    const today = new Date();
+    const { start, end } = periodBounds(anchor, today);
+    const elapsed = elapsedFraction(start, end, today) * 100;
+
+    return d.budgets
+      .filter((b) => b.is_active)
+      .map((budget) => {
+        const inPeriod = d.transactions.filter(
+          (t) =>
+            t.direction === "debit" &&
+            !(t as Txn & { transfer_id?: string }).transfer_id &&
+            t.occurred_at >= start &&
+            t.occurred_at <= end &&
+            (!budget.category_id || t.category_id === budget.category_id),
+        );
+        const spent = inPeriod.reduce((sum, t) => sum + t.amount, 0);
+        const allocated = budget.amount;
+        const remaining = allocated - spent;
+        const used = allocated ? (spent / allocated) * 100 : 0;
+        const status: BudgetStatus["status"] =
+          spent > allocated ? "over" : spent / allocated > Math.max((elapsed + 15) / 100, 0.9) ? "at_risk" : "on_track";
+
+        return {
+          id: budget.id,
+          name: budget.name,
+          category_id: budget.category_id,
+          category_name: d.categories.find((c) => c.id === budget.category_id)?.name ?? null,
+          period_start: start,
+          period_end: end,
+          allocated,
+          carried: 0,
+          spent,
+          remaining,
+          used_pct: Math.round(used * 10) / 10,
+          elapsed_pct: Math.round(elapsed * 10) / 10,
+          status,
+          rollover: budget.rollover,
+        };
+      });
+  },
+
+  goals: () => db().goals,
+
+  createGoal: (input: { name: string; target: number; monthly_target?: number | null }) => {
+    const d = db();
+    const goal = {
+      id: uid(),
+      name: input.name,
+      target: input.target,
+      contributed: 0,
+      progress_pct: 0,
+      monthly_target: input.monthly_target ?? null,
+      target_date: null,
+      projected_finish: null,
+      status: "active",
+      contributions: [] as { amount: number; on: string }[],
+    };
+    d.goals.push(goal);
+    persist();
+    return goal;
+  },
+
+  contribute: (goalId: string, amount: number) => {
+    const d = db();
+    const goal = d.goals.find((g) => g.id === goalId);
+    if (!goal) throw new Error("Goal not found");
+    goal.contributions.push({ amount, on: toISO(new Date()) });
+    goal.contributed = goal.contributions.reduce((s, c) => s + c.amount, 0);
+    goal.progress_pct = Math.round((goal.contributed / goal.target) * 1000) / 10;
+    if (goal.monthly_target) {
+      const months = Math.ceil(Math.max(goal.target - goal.contributed, 0) / goal.monthly_target);
+      const finish = new Date();
+      finish.setMonth(finish.getMonth() + months);
+      goal.projected_finish = toISO(finish);
+    }
+    persist();
+    return goal;
+  },
+
+  dashboard: (): Dashboard => {
+    const d = db();
+    const anchor = d.household.cycle_start_day;
+    const today = new Date();
+    const { start, end } = periodBounds(anchor, today);
+    const prev = previousPeriod(anchor, start);
+
+    const inWindow = (from: string, to: string, direction: "debit" | "credit") =>
+      d.transactions.filter(
+        (t) =>
+          t.direction === direction &&
+          !(t as Txn & { transfer_id?: string }).transfer_id &&
+          t.occurred_at >= from &&
+          t.occurred_at <= to,
+      );
+
+    const rows = inWindow(start, end, "debit");
+    const spent = rows.reduce((s, t) => s + t.amount, 0);
+    const income = inWindow(start, end, "credit").reduce((s, t) => s + t.amount, 0);
+    const prevIncome = inWindow(prev.start, prev.end, "credit").reduce((s, t) => s + t.amount, 0);
+
+    const statuses = demo.budgetStatus();
+    const budgetedRemaining = statuses.reduce((s, b) => s + Math.max(b.remaining, 0), 0);
+    const series = detectSeries(d.transactions, today);
+    const committed = series
+      .filter((s) => s.next_due >= start && s.next_due <= end)
+      .reduce((sum, s) => sum + s.expected_amount, 0);
+
+    const byDay = new Map<string, number>();
+    for (const t of rows) byDay.set(t.occurred_at, (byDay.get(t.occurred_at) ?? 0) + t.amount);
+    const sparkline: { date: string; amount: number }[] = [];
+    const cursor = new Date(`${start}T00:00:00`);
+    while (toISO(cursor) <= end) {
+      sparkline.push({ date: toISO(cursor), amount: byDay.get(toISO(cursor)) ?? 0 });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const expectedIncome = income || prevIncome;
+    const catName = (id: string | null) => d.categories.find((c) => c.id === id)?.name ?? "Uncategorised";
+    const prevByCat = new Map<string, number>();
+    const elapsedDays = daysBetween(start, toISO(today));
+    const prevCutoff = toISO(new Date(new Date(`${prev.start}T00:00:00`).getTime() + elapsedDays * 86400000));
+    for (const t of inWindow(prev.start, prev.end, "debit").filter((r) => r.occurred_at <= prevCutoff)) {
+      const key = t.category_id ?? "none";
+      prevByCat.set(key, (prevByCat.get(key) ?? 0) + t.amount);
+    }
+    const curByCat = new Map<string, number>();
+    for (const t of rows) {
+      const key = t.category_id ?? "none";
+      curByCat.set(key, (curByCat.get(key) ?? 0) + t.amount);
+    }
+
+    const insights = [...curByCat.entries()]
+      .map(([key, amount]) => ({ key, amount, base: prevByCat.get(key) ?? 0 }))
+      .filter((row) => row.base > 0 && Math.abs(row.amount - row.base) >= 50000)
+      .sort((a, b) => Math.abs(b.amount - b.base) - Math.abs(a.amount - a.base))
+      .slice(0, 3)
+      .map((row) => ({
+        kind: "month_delta",
+        severity: row.amount > row.base ? "warn" : "info",
+        title: `${catName(row.key === "none" ? null : row.key)} is ${
+          row.amount > row.base ? "up" : "down"
+        } ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
+          Math.abs(row.amount - row.base) / 100,
+        )}`,
+        fact_pack: {
+          query: "sum(transactions.amount) group by category_id",
+          category_id: row.key,
+          category_name: catName(row.key === "none" ? null : row.key),
+          current: row.amount,
+          previous: row.base,
+          delta: row.amount - row.base,
+        },
+      }));
+
+    return {
+      period_start: start,
+      period_end: end,
+      period_label: periodLabel(start, end),
+      days_left: Math.max(daysBetween(toISO(today), end) + 1, 0),
+      elapsed_pct: Math.round(elapsedFraction(start, end, today) * 1000) / 10,
+      income,
+      spent,
+      committed,
+      budgeted_remaining: budgetedRemaining,
+      free_to_spend: expectedIncome - committed - budgetedRemaining,
+      budgets: statuses,
+      goals: d.goals.map((g) => ({ ...g, contributions: undefined })) as unknown as Goal[],
+      due_soon: series
+        .filter((s) => s.next_due >= start && s.next_due <= end)
+        .slice(0, 5)
+        .map((s) => ({ merchant: s.merchant, amount: s.expected_amount, due: s.next_due, cadence: s.cadence })),
+      sparkline,
+      insights,
+    };
+  },
+
+  recurring: () => detectSeries(db().transactions, new Date()),
 
   reset: () => {
     cache = blank();

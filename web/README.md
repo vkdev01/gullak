@@ -14,18 +14,21 @@ src/
 ├── components/
 │   ├── layout/          AppShell — wordmark, nav, session chrome
 │   ├── ui/              Button, Card, Field, StatCard, EmptyState
+│   ├── dashboard/       HeroCard, SpendChart, GoalsRail, DueSoon, BudgetStrip, InsightList
 │   ├── ledger/          QuickAddBar, LedgerToolbar, LedgerList, DayGroup, LedgerRow
 │   ├── import/          StatementForm, ImportPreview, ImportResult
 │   ├── review/          ReviewQueue
 │   └── accounts/        AccountList
 ├── hooks/               useAccounts, useCategories, useLedger, useQuickAdd,
-│                        useImport, useReview
+│                        useImport, useReview, useDashboard, useBudgets, useGoals
 ├── lib/
 │   ├── api/             client (HTTP) · demo (localStorage) · types · index (facade)
 │   ├── format.ts        money, dates
 │   ├── parse.ts         "320 swiggy yesterday"
 │   ├── csv.ts           statement parsing for the demo transport
-│   └── merchants.ts     compact merchant seed list for the demo transport
+│   ├── merchants.ts     compact merchant seed list for the demo transport
+│   ├── plan.ts          salary-anchored periods, elapsed fraction
+│   └── recurring.ts     series detection for the demo transport
 ├── styles/              _tokens · _mixins · globals
 └── config/              site metadata and nav items
 ```
