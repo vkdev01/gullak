@@ -5,6 +5,7 @@ node_modules/
 web/.next/
 web/out/
 next-env.d.ts
+*.tsbuildinfo
 
 # python
 __pycache__/
@@ -19,3 +20,6 @@ __pycache__/
 
 # os / editors
 .DS_Store
+
+# scratch screenshots
+/shot-*.png
