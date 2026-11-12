@@ -84,6 +84,9 @@ class Transaction(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     source: Mapped[str] = mapped_column(String(20), default="manual")
     confidence: Mapped[float] = mapped_column(default=1.0)
+    needs_review: Mapped[bool] = mapped_column(default=False, index=True)
+    dedupe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    import_batch_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     account = relationship("Account")
@@ -100,3 +103,54 @@ class TransactionSplit(Base):
     category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     amount: Mapped[int] = mapped_column(BigInteger)
     note: Mapped[str] = mapped_column(String(200), default="")
+
+
+class Rule(Base):
+    """A user-authored categorisation rule. Rules win over every heuristic."""
+
+    __tablename__ = "rules"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    household_id: Mapped[str] = mapped_column(ForeignKey("households.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    priority: Mapped[int] = mapped_column(default=100)
+    match_type: Mapped[str] = mapped_column(String(12), default="contains")  # contains | equals | regex
+    pattern: Mapped[str] = mapped_column(String(200))
+    category_id: Mapped[str] = mapped_column(ForeignKey("categories.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ImportBatch(Base):
+    """One uploaded statement. Nothing reaches the ledger until it is committed."""
+
+    __tablename__ = "import_batches"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    household_id: Mapped[str] = mapped_column(ForeignKey("households.id", ondelete="CASCADE"), index=True)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"))
+    filename: Mapped[str] = mapped_column(String(200), default="statement.csv")
+    status: Mapped[str] = mapped_column(String(12), default="preview")  # preview | committed
+    row_count: Mapped[int] = mapped_column(default=0)
+    duplicate_count: Mapped[int] = mapped_column(default=0)
+    review_count: Mapped[int] = mapped_column(default=0)
+    imported_count: Mapped[int] = mapped_column(default=0)
+    mapping: Mapped[str] = mapped_column(Text, default="")  # json of the column mapping used
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ImportRow(Base):
+    """A parsed candidate row, kept so the preview can be re-read and audited."""
+
+    __tablename__ = "import_rows"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    batch_id: Mapped[str] = mapped_column(ForeignKey("import_batches.id", ondelete="CASCADE"), index=True)
+    line_no: Mapped[int] = mapped_column(default=0)
+    occurred_at: Mapped[date] = mapped_column(Date)
+    description: Mapped[str] = mapped_column(String(300), default="")
+    merchant: Mapped[str] = mapped_column(String(160), default="")
+    direction: Mapped[str] = mapped_column(String(10), default="debit")
+    amount: Mapped[int] = mapped_column(BigInteger)
+    category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    confidence: Mapped[float] = mapped_column(default=0.0)
+    reason: Mapped[str] = mapped_column(String(24), default="")  # rule | merchant | pattern | none
+    dedupe_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
+    is_duplicate: Mapped[bool] = mapped_column(default=False)
+    status: Mapped[str] = mapped_column(String(12), default="ready")  # ready | review | duplicate | imported | skipped

@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session, joinedload
 from ..db import get_db
 from ..deps import current_household_id
 from ..models import Account, Category, Transaction
-from ..schemas import SummaryOut, TransactionIn, TransactionOut
+from ..schemas import BulkCategoriseIn, BulkCategoriseOut, ReviewRowOut, SummaryOut, TransactionIn, TransactionOut
+from ..services import categorise as cat
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -16,7 +17,7 @@ def _out(t: Transaction) -> TransactionOut:
     return TransactionOut(
         id=t.id, account_id=t.account_id, amount=t.amount, direction=t.direction,
         occurred_at=t.occurred_at, merchant=t.merchant, category_id=t.category_id,
-        note=t.note, source=t.source,
+        note=t.note, source=t.source, confidence=t.confidence, needs_review=t.needs_review,
         account_name=t.account.name if t.account else None,
         category_name=t.category.name if t.category else None,
     )
@@ -95,3 +96,50 @@ def summary(hid: str = Depends(current_household_id), db: Session = Depends(get_
     income = sum(amt for d, amt, _ in rows if d == "credit")
     count = sum(c for _, _, c in rows)
     return SummaryOut(spent=spent, income=income, net=income - spent, count=count)
+
+
+@router.get("/review", response_model=list[ReviewRowOut])
+def review_queue(hid: str = Depends(current_household_id), db: Session = Depends(get_db), limit: int = Query(200, le=500)):
+    """Everything the importer was not confident about, newest first."""
+    rows = db.scalars(
+        select(Transaction)
+        .options(joinedload(Transaction.account), joinedload(Transaction.category))
+        .where(Transaction.household_id == hid, Transaction.needs_review.is_(True))
+        .order_by(Transaction.occurred_at.desc())
+        .limit(limit)
+    ).all()
+
+    rules = cat.load_rules(db, hid)
+    categories = cat.category_lookup(db, hid)
+    out: list[ReviewRowOut] = []
+    for t in rows:
+        suggestion = cat.categorise(f"{t.merchant} {t.note}", rules, categories)
+        base = _out(t)
+        out.append(
+            ReviewRowOut(
+                **base.model_dump(),
+                suggested_category_id=suggestion.category_id,
+            )
+        )
+    return out
+
+
+@router.post("/bulk", response_model=BulkCategoriseOut)
+def bulk_categorise(body: BulkCategoriseIn, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """Assign one category to many rows at once — the review queue's main verb."""
+    category = db.get(Category, body.category_id)
+    if not category or category.household_id != hid:
+        raise HTTPException(status_code=404, detail="Category not found in this household")
+
+    rows = db.scalars(
+        select(Transaction).where(Transaction.household_id == hid, Transaction.id.in_(body.ids))
+    ).all()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No matching transactions")
+
+    for t in rows:
+        t.category_id = category.id
+        t.confidence = 1.0
+        t.needs_review = False
+    db.commit()
+    return BulkCategoriseOut(updated=len(rows))
