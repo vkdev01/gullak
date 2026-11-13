@@ -18,6 +18,7 @@ type Props = {
   out: number;
   income: number;
   onRecategorise: (id: string, categoryId: string) => void;
+  onOpen: (id: string) => void;
   onSeed: () => void;
   seeding: boolean;
 };
@@ -47,6 +48,7 @@ export default function LedgerList({
   out,
   income,
   onRecategorise,
+  onOpen,
   onSeed,
   seeding,
 }: Props) {
@@ -91,6 +93,7 @@ export default function LedgerList({
           transactions={list}
           categories={categories}
           onRecategorise={onRecategorise}
+          onOpen={onOpen}
         />
       ))}
 

@@ -9,6 +9,7 @@ type Props = {
   transaction: Txn;
   categories: Category[];
   onRecategorise: (id: string, categoryId: string) => void;
+  onOpen: (id: string) => void;
 };
 
 const TINT: Record<string, string> = { green: s.cGreen, clay: s.cClay, butter: s.cButter };
@@ -20,7 +21,7 @@ const SOURCE_LABEL: Record<string, string> = {
   rule: "categorised by a rule",
 };
 
-export default function LedgerRow({ transaction, categories, onRecategorise }: Props) {
+export default function LedgerRow({ transaction, categories, onRecategorise, onOpen }: Props) {
   const [editing, setEditing] = useState(false);
   const incoming = transaction.direction === "credit";
   const category = categories.find((c) => c.id === transaction.category_id);
@@ -29,7 +30,18 @@ export default function LedgerRow({ transaction, categories, onRecategorise }: P
   const tint = category ? TINT[category.colour] ?? s.cGreen : s.cNone;
 
   return (
-    <div className={s.row} role="row">
+    <div
+      className={s.row}
+      role="row"
+      tabIndex={0}
+      onClick={() => onOpen(transaction.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(transaction.id);
+        }
+      }}
+    >
       <div className={`${s.tile} ${tint}`} aria-hidden="true">
         {transaction.merchant.slice(0, 1).toUpperCase()}
       </div>

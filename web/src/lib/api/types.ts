@@ -29,6 +29,7 @@ export type Txn = {
   confidence?: number;
   needs_review?: boolean;
   dedupe_hash?: string;
+  import_batch_id?: string;
   created_at?: string;
   account_name?: string;
   category_name?: string;
@@ -167,3 +168,25 @@ export type Series = {
 export type GroupRow = { key: string; label: string; total: number; count: number };
 
 export type Count = { count: number; out: number; income: number; net: number };
+
+export type TransactionDetail = {
+  id: string;
+  account_id: string;
+  account_name: string | null;
+  amount: number;
+  direction: "debit" | "credit";
+  occurred_at: string;
+  merchant: string;
+  note: string;
+  category_id: string | null;
+  category_name: string | null;
+  category_parent: string | null;
+  source: string;
+  confidence: number;
+  needs_review: boolean;
+  transfer_id: string | null;
+  dedupe_hash: string | null;
+  created_at: string | null;
+  import_filename: string | null;
+  import_batch_id: string | null;
+};

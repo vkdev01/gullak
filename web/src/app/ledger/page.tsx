@@ -11,6 +11,7 @@ import LedgerList from "@/components/ledger/LedgerList";
 import LedgerToolbar from "@/components/ledger/LedgerToolbar";
 import Pagination from "@/components/ledger/Pagination";
 import PeriodNav from "@/components/ledger/PeriodNav";
+import TransactionDrawer from "@/components/ledger/TransactionDrawer";
 import QuickAddBar from "@/components/ledger/QuickAddBar";
 import Button from "@/components/ui/Button";
 import s from "./page.module.scss";
@@ -20,6 +21,7 @@ export default function LedgerPage() {
   const { categories } = useCategories();
   const ledger = useLedger();
   const [seeding, setSeeding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const reviewCount = useMemo(() => ledger.transactions.filter((t) => t.needs_review).length, [ledger.transactions]);
 
@@ -118,6 +120,7 @@ export default function LedgerPage() {
         out={ledger.totals.out}
         income={ledger.totals.income}
         onRecategorise={ledger.recategorise}
+        onOpen={setOpenId}
         onSeed={seed}
         seeding={seeding}
       />
@@ -129,6 +132,16 @@ export default function LedgerPage() {
         total={ledger.totals.count}
         onPage={ledger.setPage}
       />
+
+      {openId && (
+        <TransactionDrawer
+          id={openId}
+          categories={categories}
+          onClose={() => setOpenId(null)}
+          onRecategorise={ledger.recategorise}
+          onReviewed={() => void ledger.reload()}
+        />
+      )}
 
       {isDemoMode() && (
         <p className={s.note}>

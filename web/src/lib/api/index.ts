@@ -16,6 +16,7 @@ import type {
   ReviewRow,
   Rule,
   Summary,
+  TransactionDetail,
   Txn,
 } from "./types";
 
@@ -36,6 +37,7 @@ export type {
   Rule,
   Series,
   Summary,
+  TransactionDetail,
   Txn,
 } from "./types";
 export { getToken, setToken };
@@ -75,6 +77,9 @@ export const api = {
             Object.entries(params).map(([k, v]) => [k, String(v)]),
           ).toString()}`,
         ),
+
+  transaction: (id: string): Promise<TransactionDetail> =>
+    isDemoMode() ? Promise.resolve(demo.transaction(id) as TransactionDetail) : request(`/transactions/${id}`),
 
   count: (params: Record<string, string | number | boolean> = {}): Promise<Count> =>
     isDemoMode()
