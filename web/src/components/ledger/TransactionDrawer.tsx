@@ -1,0 +1,202 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { api, type Category, type TransactionDetail } from "@/lib/api";
+import { money } from "@/lib/format";
+import Button from "@/components/ui/Button";
+import s from "./ledger.module.scss";
+
+type Props = {
+  id: string;
+  categories: Category[];
+  onClose: () => void;
+  onRecategorise: (id: string, categoryId: string) => void;
+  onReviewed: (id: string) => void;
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  import: "imported from a statement",
+  seed: "demo data",
+  manual: "added by hand",
+  rule: "categorised by a rule",
+};
+
+export default function TransactionDrawer({ id, categories, onClose, onRecategorise, onReviewed }: Props) {
+  const [detail, setDetail] = useState<TransactionDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    api
+      .transaction(id)
+      .then((row) => live && setDetail(row))
+      .catch((e) => live && setError((e as Error).message));
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const leaves = categories.filter((c) => c.parent_id);
+  const incoming = detail?.direction === "credit";
+
+  async function markReviewed() {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      await api.bulkCategorise([detail.id], detail.category_id ?? "");
+      onReviewed(detail.id);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className={s.scrim} onClick={onClose} aria-hidden="true" />
+
+      <aside className={s.drawer} role="dialog" aria-modal="true" aria-label="Transaction details">
+        <div className={s.drawerHead}>
+          <span className={s.drawerKicker}>Transaction</span>
+          <button type="button" className={s.drawerClose} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        {error && <p className={s.drawerError}>{error}</p>}
+
+        {!detail && !error && <p className="small muted">Loading…</p>}
+
+        {detail && (
+          <>
+            <div className={s.drawerTop}>
+              <div className={`${s.drawerTile} ${detail.category_name ? s.cGreen : s.cNone}`} aria-hidden="true">
+                {detail.merchant.slice(0, 1).toUpperCase()}
+              </div>
+              <div>
+                <h2 className={s.drawerMerchant}>{detail.merchant}</h2>
+                <span className={s.drawerDate}>
+                  {new Date(`${detail.occurred_at}T00:00:00`).toLocaleDateString("en-IN", {
+                    weekday: "short",
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
+
+            <div className={`${s.drawerAmount} ${incoming ? s.incoming : ""}`}>
+              {incoming ? "+" : "−"}
+              {money(detail.amount)}
+            </div>
+
+            <div className={s.drawerChips}>
+              <span className={s.drawerChip}>{SOURCE_LABEL[detail.source] ?? detail.source}</span>
+              {detail.confidence > 0 && (
+                <span className={s.drawerChip}>{Math.round(detail.confidence * 100)}% confident</span>
+              )}
+              {detail.needs_review && <span className={`${s.drawerChip} ${s.drawerChipWarn}`}>needs review</span>}
+              {detail.transfer_id && <span className={s.drawerChip}>transfer</span>}
+            </div>
+
+            <dl className={s.fields}>
+              <div>
+                <dt>Category</dt>
+                <dd>
+                  <select
+                    className={s.fieldSelect}
+                    value={detail.category_id ?? ""}
+                    onChange={(e) => {
+                      onRecategorise(detail.id, e.target.value);
+                      setDetail({ ...detail, category_id: e.target.value || null });
+                    }}
+                  >
+                    <option value="">Uncategorised</option>
+                    {leaves.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
+              </div>
+
+              <div>
+                <dt>Parent</dt>
+                <dd>{detail.category_parent ?? "—"}</dd>
+              </div>
+
+              <div>
+                <dt>Account</dt>
+                <dd>{detail.account_name ?? "—"}</dd>
+              </div>
+
+              <div>
+                <dt>Direction</dt>
+                <dd>{incoming ? "Money in" : "Money out"}</dd>
+              </div>
+
+              <div className={s.fieldWide}>
+                <dt>Description</dt>
+                <dd className={s.mono}>{detail.note || "no description on this row"}</dd>
+              </div>
+
+              {detail.import_filename && (
+                <div className={s.fieldWide}>
+                  <dt>Came from</dt>
+                  <dd className={s.mono}>{detail.import_filename}</dd>
+                </div>
+              )}
+
+              {detail.dedupe_hash && (
+                <div className={s.fieldWide}>
+                  <dt>Dedupe key</dt>
+                  <dd className={s.mono}>{detail.dedupe_hash}</dd>
+                </div>
+              )}
+
+              {detail.transfer_id && (
+                <div className={s.fieldWide}>
+                  <dt>Transfer</dt>
+                  <dd className={s.mono}>{detail.transfer_id} · excluded from spend</dd>
+                </div>
+              )}
+
+              {detail.created_at && (
+                <div className={s.fieldWide}>
+                  <dt>Added</dt>
+                  <dd className={s.mono}>{detail.created_at.replace("T", " ").slice(0, 16)}</dd>
+                </div>
+              )}
+            </dl>
+
+            {detail.needs_review && !detail.category_id && (
+              <p className={s.drawerHint}>Give this row a category and it leaves the review queue.</p>
+            )}
+
+            <div className={s.drawerFoot}>
+              {detail.needs_review && (
+                <Button size="sm" onClick={markReviewed} disabled={busy || !detail.category_id}>
+                  Mark as reviewed
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          </>
+        )}
+      </aside>
+    </>
+  );
+}

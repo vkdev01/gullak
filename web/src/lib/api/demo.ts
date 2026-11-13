@@ -238,6 +238,29 @@ export const demo = {
     return { count: rows.length, out, income, net: income - out };
   },
 
+  transaction: (id: string) => {
+    const d = db();
+    const tx = d.transactions.find((t) => t.id === id);
+    if (!tx) throw new Error("Transaction not found");
+    const category = d.categories.find((c) => c.id === tx.category_id) ?? null;
+    const parent = category?.parent_id ? d.categories.find((c) => c.id === category.parent_id) ?? null : null;
+    const batch = tx.import_batch_id ? d.batches.find((b) => b.id === tx.import_batch_id) ?? null : null;
+
+    return {
+      ...tx,
+      account_name: d.accounts.find((a) => a.id === tx.account_id)?.name ?? null,
+      category_name: category?.name ?? null,
+      category_parent: parent?.name ?? null,
+      confidence: tx.confidence ?? 1,
+      needs_review: Boolean(tx.needs_review),
+      transfer_id: (tx as Txn & { transfer_id?: string }).transfer_id ?? null,
+      dedupe_hash: tx.dedupe_hash ?? null,
+      created_at: tx.created_at ?? null,
+      import_filename: batch?.filename ?? null,
+      import_batch_id: tx.import_batch_id ?? null,
+    };
+  },
+
   createTransaction: (body: Record<string, unknown>) => {
     const t: Txn = {
       id: uid(),
