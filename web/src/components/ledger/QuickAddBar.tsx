@@ -83,7 +83,13 @@ export default function QuickAddBar({ accounts, preferredAccountId, onAdd }: Pro
               <span className={s.quickMissing}>no amount yet</span>
             )}
             <span>{parsed.direction === "credit" ? "money in" : "money out"}</span>
-            <span>{parsed.merchant}</span>
+            {parsed.hasName ? (
+              <span>{parsed.merchant}</span>
+            ) : (
+              <span className={s.quickMissing}>
+                add a name, e.g. {parsed.amount ? `${parsed.amount / 100} rent` : "450 petrol"}
+              </span>
+            )}
             <span>{shortDate(parsed.date)}</span>
             {parsed.note && <span className={s.quickNote}>“{parsed.note}”</span>}
             {parsed.tags.map((t) => (

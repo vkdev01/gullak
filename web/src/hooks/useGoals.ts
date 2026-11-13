@@ -39,5 +39,21 @@ export function useGoals() {
     [reload],
   );
 
-  return { goals, loading, error, create, contribute, reload };
+  const remove = useCallback(
+    async (goalId: string) => {
+      await api.deleteGoal(goalId);
+      await reload();
+    },
+    [reload],
+  );
+
+  const undoLast = useCallback(
+    async (goalId: string) => {
+      await api.undoContribution(goalId);
+      await reload();
+    },
+    [reload],
+  );
+
+  return { goals, loading, error, create, contribute, remove, undoLast, reload };
 }

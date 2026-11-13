@@ -6,6 +6,7 @@ export type Account = {
   masked_number: string;
   opening_balance: number;
   balance: number;
+  archived?: boolean;
   kind?: "spending" | "investment";
   description?: string;
   interest_rate?: number | null;
@@ -177,7 +178,17 @@ export type BudgetSuggestion = { category_id: string | null; average: number; pe
 
 export type Household = { id: string; name: string; currency: string; cycle_start_day: number };
 
-export type TransactionPatch = { category_id?: string | null; note?: string; tags?: string[]; merchant?: string };
+export type TransactionPatch = {
+  category_id?: string | null;
+  note?: string;
+  tags?: string[];
+  merchant?: string;
+  amount?: number;
+  occurred_at?: string;
+  direction?: "debit" | "credit";
+};
+
+export type Removed = { result: "deleted" | "archived"; transactions: number };
 
 export type Goal = {
   id: string;

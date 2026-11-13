@@ -1,15 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { isDemoMode } from "@/lib/api";
+import { api, isDemoMode } from "@/lib/api";
 import { money, monthLabelFromKey, shortDate } from "@/lib/format";
 import { parseLedgerLink } from "@/lib/links";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useHotkeys } from "@/hooks/useHotkeys";
-import { useLedger } from "@/hooks/useLedger";
+import { EMPTY_FILTERS, hasActiveFilters, useLedger } from "@/hooks/useLedger";
 import LedgerList from "@/components/ledger/LedgerList";
 import LedgerToolbar from "@/components/ledger/LedgerToolbar";
 import Pagination from "@/components/ledger/Pagination";
@@ -18,6 +18,9 @@ import ShortcutsHelp from "@/components/ledger/ShortcutsHelp";
 import TransactionDrawer from "@/components/ledger/TransactionDrawer";
 import QuickAddBar from "@/components/ledger/QuickAddBar";
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
+import Toast, { type ToastState } from "@/components/ui/Toast";
+import l from "@/components/ledger/ledger.module.scss";
 import s from "./page.module.scss";
 
 function focusRow(delta: number) {
@@ -51,12 +54,108 @@ function LedgerPage() {
   const [seeding, setSeeding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const reviewCount = useMemo(() => ledger.transactions.filter((t) => t.needs_review).length, [ledger.transactions]);
+  const closeToast = useCallback(() => setToast(null), []);
+  const notify = useCallback(
+    (message: string, actions?: NonNullable<ToastState>["actions"], tone?: "ok" | "error") =>
+      setToast({ id: Date.now(), message, actions, tone }),
+    [],
+  );
+
+  // rows that scrolled out of the window (another month, a filter) are no longer selected
+  useEffect(() => {
+    setSelected((prev) => {
+      const here = new Set(ledger.transactions.map((t) => t.id));
+      const kept = new Set([...prev].filter((id) => here.has(id)));
+      return kept.size === prev.size ? prev : kept;
+    });
+  }, [ledger.transactions]);
 
   useEffect(() => {
     if (params.get("add")) focusInput("quick-add");
   }, [params]);
+
+  const endSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+    setConfirmBulk(false);
+    setBulkCategory("");
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelecting(true);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Delete on a focused row selects it and asks, rather than deleting on a stray key press.
+  const askToDelete = (id: string) => {
+    setSelecting(true);
+    setSelected(new Set([id]));
+    setConfirmBulk(true);
+  };
+
+  async function deleteSelected() {
+    setBulkBusy(true);
+    try {
+      const deleted = await ledger.remove([...selected]);
+      notify(`Deleted ${deleted} ${deleted === 1 ? "entry" : "entries"}`);
+      endSelecting();
+    } catch (e) {
+      notify((e as Error).message, undefined, "error");
+      setConfirmBulk(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function categoriseSelected() {
+    setBulkBusy(true);
+    try {
+      const { updated } = await api.bulkCategorise([...selected], bulkCategory);
+      await ledger.reload();
+      notify(`Filed ${updated} ${updated === 1 ? "entry" : "entries"}`);
+      endSelecting();
+    } catch (e) {
+      notify((e as Error).message, undefined, "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function handleAdd(input: Parameters<typeof ledger.add>[0]) {
+    const row = await ledger.add(input); // a failure surfaces under the input box
+    ledger.reveal(row.occurred_at);
+    const filed = row.category_name ? `\u2192 ${row.category_name}` : "· uncategorised";
+    const hidden =
+      hasActiveFilters(ledger.filters) ||
+      Boolean(ledger.filters.accountId && ledger.filters.accountId !== row.account_id);
+    notify(`Added ${row.direction === "credit" ? "+" : "−"}${money(row.amount)} · ${row.merchant} ${filed}`, [
+      {
+        label: "Undo",
+        run: async () => {
+          await api.deleteTransaction(row.id);
+          await ledger.reload();
+          notify("Removed it");
+        },
+      },
+      { label: "Edit", run: () => setOpenId(row.id) },
+      ...(hidden
+        ? [{ label: "Show it", run: () => ledger.setFilters({ ...EMPTY_FILTERS }) }]
+        : []),
+    ]);
+  }
 
   useHotkeys(
     {
@@ -69,7 +168,10 @@ function LedgerPage() {
       "[": () => ledger.stepMonth(-1),
       "]": () => !ledger.isCurrentMonth && ledger.stepMonth(1),
       "?": () => setHelp((v) => !v),
-      Escape: () => setHelp(false),
+      Escape: () => {
+        setHelp(false);
+        if (selecting) endSelecting();
+      },
     },
     !openId,
   );
@@ -87,9 +189,10 @@ function LedgerPage() {
     return (
       <main className={s.page}>
         <h1 className={s.title}>Ledger</h1>
-        <p className="muted small" style={{ fontFamily: "var(--mono)" }}>
-          {ledger.error}
-        </p>
+        <p className="muted small">Could not load the ledger: {ledger.error}</p>
+        <Button size="sm" onClick={() => void ledger.reload()}>
+          Try again
+        </Button>
       </main>
     );
   }
@@ -112,6 +215,14 @@ function LedgerPage() {
           </p>
         </div>
         <div className={s.actions}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (selecting ? endSelecting() : setSelecting(true))}
+            aria-pressed={selecting}
+          >
+            {selecting ? "Done selecting" : "Select"}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setHelp((v) => !v)} aria-expanded={help}>
             Shortcuts <kbd>?</kbd>
           </Button>
@@ -150,7 +261,7 @@ function LedgerPage() {
         accounts={accounts}
         preferredAccountId={ledger.filters.accountId}
         onAdd={({ accountId, amount, direction, merchant, date, note, tags }) =>
-          ledger.add({ accountId, amount, direction, merchant, date, note, tags })
+          handleAdd({ accountId, amount, direction, merchant, date, note, tags })
         }
       />
 
@@ -175,6 +286,52 @@ function LedgerPage() {
         onClearRange={ledger.clearRange}
       />
 
+      {selecting && (
+        <div className={l.bulkBar} role="region" aria-label="Bulk actions">
+          <b>{selected.size} selected</b>
+          <button
+            type="button"
+            className={l.bulkLink}
+            onClick={() => setSelected(new Set(ledger.transactions.map((t) => t.id)))}
+          >
+            Select all {ledger.transactions.length} on this page
+          </button>
+          <span className={l.grow} />
+          {confirmBulk ? (
+            <>
+              <span>
+                Delete {selected.size} {selected.size === 1 ? "entry" : "entries"}? Balances change back; this cannot be
+                undone.
+              </span>
+              <Button size="sm" onClick={() => void deleteSelected()} disabled={bulkBusy || selected.size === 0}>
+                {bulkBusy ? "Deleting…" : "Yes, delete"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmBulk(false)}>
+                Keep them
+              </Button>
+            </>
+          ) : (
+            <>
+              <CategoryPicker
+                categories={categories}
+                value={bulkCategory}
+                onChange={setBulkCategory}
+                placeholder="File under…"
+                aria-label="Category for the selected entries"
+                size="sm"
+                className={l.bulkPicker}
+              />
+              <Button size="sm" onClick={() => void categoriseSelected()} disabled={!bulkCategory || !selected.size || bulkBusy}>
+                Apply
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmBulk(true)} disabled={!selected.size}>
+                Delete…
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       <LedgerList
         days={ledger.days}
         categories={categories}
@@ -184,8 +341,12 @@ function LedgerPage() {
         total={ledger.totals.count}
         out={ledger.totals.out}
         income={ledger.totals.income}
+        selecting={selecting}
+        selected={selected}
         onRecategorise={ledger.recategorise}
         onOpen={setOpenId}
+        onSelect={toggleSelect}
+        onDeleteKey={askToDelete}
         onSeed={seed}
         seeding={seeding}
       />
@@ -206,8 +367,14 @@ function LedgerPage() {
           onRecategorise={ledger.recategorise}
           onReviewed={() => void ledger.reload()}
           onChanged={() => void ledger.reload()}
+          onDeleted={(deleted) => {
+            void ledger.reload();
+            notify(`Deleted ${deleted} ${deleted === 1 ? "entry" : "entries"}`);
+          }}
         />
       )}
+
+      <Toast toast={toast} onClose={closeToast} />
 
       {isDemoMode() && (
         <p className={s.note}>

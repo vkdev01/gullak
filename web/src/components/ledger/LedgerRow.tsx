@@ -11,13 +11,26 @@ import s from "./ledger.module.scss";
 type Props = {
   transaction: Txn;
   categories: Category[];
+  selecting: boolean;
+  checked: boolean;
   onRecategorise: (id: string, categoryId: string) => void;
   onOpen: (id: string) => void;
+  onSelect: (id: string) => void;
+  onDeleteKey: (id: string) => void;
 };
 
 const TINT: Record<string, string> = { green: s.cGreen, clay: s.cClay, butter: s.cButter };
 
-export default function LedgerRow({ transaction, categories, onRecategorise, onOpen }: Props) {
+export default function LedgerRow({
+  transaction,
+  categories,
+  selecting,
+  checked,
+  onRecategorise,
+  onOpen,
+  onSelect,
+  onDeleteKey,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const incoming = transaction.direction === "credit";
@@ -32,25 +45,44 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
   return (
     <div
       ref={rowRef}
-      className={s.row}
+      className={`${s.row} ${checked ? s.picked : ""}`}
       role="row"
+      aria-selected={selecting ? checked : undefined}
       tabIndex={0}
       data-ledger-row=""
-      onClick={() => onOpen(transaction.id)}
+      onClick={() => (selecting ? onSelect(transaction.id) : onOpen(transaction.id))}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " " || e.key === "o") {
           e.preventDefault();
-          onOpen(transaction.id);
+          if (selecting) onSelect(transaction.id);
+          else onOpen(transaction.id);
         } else if (e.key === "e") {
           e.preventDefault();
           setEditing(true);
+        } else if (e.key === "x") {
+          e.preventDefault();
+          onSelect(transaction.id);
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          onDeleteKey(transaction.id);
         }
       }}
     >
-      <div className={`${s.tile} ${tint}`} aria-hidden="true">
-        {transaction.merchant.slice(0, 1).toUpperCase()}
-      </div>
+      {selecting ? (
+        <input
+          type="checkbox"
+          className={s.rowCheck}
+          checked={checked}
+          onChange={() => onSelect(transaction.id)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Select ${transaction.merchant}`}
+        />
+      ) : (
+        <div className={`${s.tile} ${tint}`} aria-hidden="true">
+          {transaction.merchant.slice(0, 1).toUpperCase()}
+        </div>
+      )}
 
       <div className={s.main}>
         <b>

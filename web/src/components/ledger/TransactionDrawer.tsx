@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { api, type Category, type TransactionDetail } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, parseRupees } from "@/lib/format";
 import { normaliseTags } from "@/lib/tags";
 import Button from "@/components/ui/Button";
 import CategoryPicker from "@/components/ui/CategoryPicker";
+import Select from "@/components/ui/Select";
 import s from "./ledger.module.scss";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
   onRecategorise: (id: string, categoryId: string) => void;
   onReviewed: (id: string) => void;
   onChanged: () => void;
+  onDeleted: (deleted: number) => void;
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -24,24 +26,42 @@ const SOURCE_LABEL: Record<string, string> = {
   rule: "categorised by a rule",
 };
 
-export default function TransactionDrawer({ id, categories, onClose, onRecategorise, onReviewed, onChanged }: Props) {
+export default function TransactionDrawer({
+  id,
+  categories,
+  onClose,
+  onRecategorise,
+  onReviewed,
+  onChanged,
+  onDeleted,
+}: Props) {
   const [detail, setDetail] = useState<TransactionDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [tagText, setTagText] = useState("");
+  const [merchant, setMerchant] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState("");
+  const [direction, setDirection] = useState<"debit" | "credit">("debit");
   const [saved, setSaved] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  function load(row: TransactionDetail) {
+    setDetail(row);
+    setNote(row.note ?? "");
+    setTagText((row.tags ?? []).join(" "));
+    setMerchant(row.merchant);
+    setAmount(String(row.amount / 100));
+    setDate(row.occurred_at);
+    setDirection(row.direction);
+  }
 
   useEffect(() => {
     let live = true;
     api
       .transaction(id)
-      .then((row) => {
-        if (!live) return;
-        setDetail(row);
-        setNote(row.note ?? "");
-        setTagText((row.tags ?? []).join(" "));
-      })
+      .then((row) => live && load(row))
       .catch((e) => live && setError((e as Error).message));
     return () => {
       live = false;
@@ -49,20 +69,56 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
   }, [id]);
 
   const tags = normaliseTags(tagText);
-  const dirty = !!detail && (note.trim() !== (detail.note ?? "") || tags.join(" ") !== (detail.tags ?? []).join(" "));
+  const paise = parseRupees(amount);
+  const locked = !!detail?.transfer_id; // one half of a transfer: amount, date and direction stay in step with the other
+  const dirty =
+    !!detail &&
+    (note.trim() !== (detail.note ?? "") ||
+      tags.join(" ") !== (detail.tags ?? []).join(" ") ||
+      merchant.trim() !== detail.merchant ||
+      (!locked && (paise !== detail.amount || date !== detail.occurred_at || direction !== detail.direction)));
 
-  async function saveContext() {
+  async function save() {
     if (!detail) return;
+    if (!merchant.trim()) return setError("A name is needed, e.g. Swiggy or Rent");
+    if (!locked && !paise) return setError("Enter an amount above zero");
     setBusy(true);
     try {
-      const updated = await api.updateTransaction(detail.id, { note: note.trim(), tags });
-      setDetail({ ...detail, note: updated.note, tags: updated.tags ?? [] });
-      setTagText((updated.tags ?? []).join(" "));
+      const updated = await api.updateTransaction(detail.id, {
+        note: note.trim(),
+        tags,
+        merchant: merchant.trim(),
+        ...(locked ? {} : { amount: paise ?? undefined, occurred_at: date, direction }),
+      });
+      load({
+        ...detail,
+        note: updated.note,
+        tags: updated.tags ?? [],
+        merchant: updated.merchant,
+        amount: updated.amount,
+        occurred_at: updated.occurred_at,
+        direction: updated.direction,
+      });
       setSaved(true);
       setError(null);
       onChanged();
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const { deleted } = await api.deleteTransaction(detail.id);
+      onDeleted(deleted);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -168,10 +224,87 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
                 <dd>{detail.account_name ?? "—"}</dd>
               </div>
 
+              <div className={s.fieldWide}>
+                <dt>
+                  <label htmlFor="tx-merchant">Name</label>
+                </dt>
+                <dd>
+                  <input
+                    id="tx-merchant"
+                    className={s.fieldSelect}
+                    value={merchant}
+                    maxLength={160}
+                    onChange={(e) => {
+                      setMerchant(e.target.value);
+                      setSaved(false);
+                    }}
+                  />
+                </dd>
+              </div>
+
+              <div>
+                <dt>
+                  <label htmlFor="tx-amount">Amount (₹)</label>
+                </dt>
+                <dd>
+                  <input
+                    id="tx-amount"
+                    className={s.fieldSelect}
+                    value={amount}
+                    inputMode="decimal"
+                    disabled={locked}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      setSaved(false);
+                    }}
+                  />
+                </dd>
+              </div>
+
+              <div>
+                <dt>
+                  <label htmlFor="tx-date">Date</label>
+                </dt>
+                <dd>
+                  <input
+                    id="tx-date"
+                    type="date"
+                    className={s.fieldSelect}
+                    value={date}
+                    disabled={locked}
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                      setSaved(false);
+                    }}
+                  />
+                </dd>
+              </div>
+
               <div>
                 <dt>Direction</dt>
-                <dd>{incoming ? "Money in" : "Money out"}</dd>
+                <dd>
+                  <Select
+                    size="sm"
+                    value={direction}
+                    disabled={locked}
+                    aria-label="Money in or out"
+                    onChange={(v) => {
+                      setDirection(v as "debit" | "credit");
+                      setSaved(false);
+                    }}
+                    options={[
+                      { value: "debit", label: "Money out" },
+                      { value: "credit", label: "Money in" },
+                    ]}
+                  />
+                </dd>
               </div>
+
+              {locked && (
+                <p className={`${s.drawerHint} ${s.fieldWide}`}>
+                  This is one half of a transfer, so its amount, date and direction are fixed. Delete it to remove both halves.
+                </p>
+              )}
 
               <div className={s.fieldWide}>
                 <dt>
@@ -220,8 +353,8 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
 
               <div className={s.fieldWide}>
                 <div className={s.saveRow}>
-                  <Button size="sm" onClick={() => void saveContext()} disabled={busy || !dirty}>
-                    {busy ? "Saving…" : "Save description & tags"}
+                  <Button size="sm" onClick={() => void save()} disabled={busy || !dirty}>
+                    {busy ? "Saving…" : "Save changes"}
                   </Button>
                   {saved && !dirty && <span className={s.savedNote}>Saved</span>}
                 </div>
@@ -269,6 +402,32 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
               <Button variant="ghost" size="sm" onClick={onClose}>
                 Close
               </Button>
+            </div>
+
+            <div className={s.danger}>
+              {confirming ? (
+                <>
+                  <p>
+                    Delete {incoming ? "+" : "−"}
+                    {money(detail.amount)} · {detail.merchant}?{" "}
+                    {detail.transfer_id
+                      ? "Both halves of the transfer are removed."
+                      : "Your balance and every total change back, and this cannot be undone."}
+                  </p>
+                  <div>
+                    <Button size="sm" onClick={() => void remove()} disabled={busy}>
+                      {busy ? "Deleting…" : "Yes, delete it"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+                      Keep it
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => setConfirming(true)}>
+                  Delete this entry
+                </button>
+              )}
             </div>
           </>
         )}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
+import RemoveAccount from "./RemoveAccount";
 import { api, type Account } from "@/lib/api";
 import { ACCOUNT_TYPE_LABEL } from "@/lib/flows";
 import { money, parseRupees, shortDate, todayISO } from "@/lib/format";
@@ -150,6 +151,9 @@ export default function SavingsCard({ account, spendingAccounts, onChanged }: Pr
           Details
         </button>
         <Link href={ledgerHref({ account: account.id, when: "all" })}>Rows</Link>
+      </div>
+      <div className={s.savingRemove}>
+        <RemoveAccount account={account} onDone={onChanged} />
       </div>
 
       {action && (

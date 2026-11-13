@@ -9,11 +9,25 @@ type Props = {
   date: string;
   transactions: Txn[];
   categories: Category[];
+  selecting: boolean;
+  selected: Set<string>;
   onRecategorise: (id: string, categoryId: string) => void;
   onOpen: (id: string) => void;
+  onSelect: (id: string) => void;
+  onDeleteKey: (id: string) => void;
 };
 
-export default function DayGroup({ date, transactions, categories, onRecategorise, onOpen }: Props) {
+export default function DayGroup({
+  date,
+  transactions,
+  categories,
+  selecting,
+  selected,
+  onRecategorise,
+  onOpen,
+  onSelect,
+  onDeleteKey,
+}: Props) {
   const net = transactions.reduce((acc, t) => acc + (t.direction === "credit" ? t.amount : -t.amount), 0);
   const count = transactions.length;
 
@@ -32,8 +46,12 @@ export default function DayGroup({ date, transactions, categories, onRecategoris
           key={t.id}
           transaction={t}
           categories={categories}
+          selecting={selecting}
+          checked={selected.has(t.id)}
           onRecategorise={onRecategorise}
           onOpen={onOpen}
+          onSelect={onSelect}
+          onDeleteKey={onDeleteKey}
         />
       ))}
     </div>

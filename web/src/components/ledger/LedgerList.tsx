@@ -3,7 +3,7 @@
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import { money } from "@/lib/format";
-import type { Category, Txn } from "@/lib/api";
+import { isDemoMode, type Category, type Txn } from "@/lib/api";
 import type { LedgerView } from "@/hooks/useLedger";
 import DayGroup from "./DayGroup";
 import s from "./ledger.module.scss";
@@ -19,14 +19,18 @@ type Props = {
   income: number;
   onRecategorise: (id: string, categoryId: string) => void;
   onOpen: (id: string) => void;
+  onSelect: (id: string) => void;
+  onDeleteKey: (id: string) => void;
+  selecting: boolean;
+  selected: Set<string>;
   onSeed: () => void;
   seeding: boolean;
 };
 
 const EMPTY: Record<LedgerView, { title: string; body: string }> = {
   all: {
-    title: "Your ledger is empty",
-    body: "Add a transaction above, or load six months of believable demo data to see how the ledger behaves at volume.",
+    title: "Nothing in this period",
+    body: "Add a transaction above, step to another month, or import a statement.",
   },
   review: {
     title: "Nothing needs a look",
@@ -49,6 +53,10 @@ export default function LedgerList({
   income,
   onRecategorise,
   onOpen,
+  onSelect,
+  onDeleteKey,
+  selecting,
+  selected,
   onSeed,
   seeding,
 }: Props) {
@@ -74,7 +82,7 @@ export default function LedgerList({
           <EmptyState
             title={hasAny && view === "all" ? "Nothing matches those filters" : copy.title}
             action={
-              view === "all" && !hasAny ? (
+              view === "all" && !hasAny && isDemoMode() ? (
                 <Button size="sm" onClick={onSeed} disabled={seeding}>
                   {seeding ? "Loading…" : "Load demo data"}
                 </Button>
@@ -96,8 +104,12 @@ export default function LedgerList({
           date={date}
           transactions={list}
           categories={categories}
+          selecting={selecting}
+          selected={selected}
           onRecategorise={onRecategorise}
           onOpen={onOpen}
+          onSelect={onSelect}
+          onDeleteKey={onDeleteKey}
         />
       ))}
 
