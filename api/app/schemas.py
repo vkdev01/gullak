@@ -296,3 +296,10 @@ class GroupRow(BaseModel):
     label: str
     total: int
     count: int
+
+
+class CountOut(BaseModel):
+    count: int
+    out: int
+    income: int
+    net: int

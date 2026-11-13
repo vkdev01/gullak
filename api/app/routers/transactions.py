@@ -10,6 +10,7 @@ from ..deps import current_household_id
 from ..models import Account, Category, Transaction
 from ..schemas import (
     BulkCategoriseIn,
+    CountOut,
     BulkCategoriseOut,
     GroupRow,
     ReviewRowOut,
@@ -250,3 +251,41 @@ def create_transfer(body: TransferIn, hid: str = Depends(current_household_id), 
     db.add_all([out_leg, in_leg])
     db.commit()
     return TransferOut(transfer_id=transfer_id, from_transaction_id=out_leg.id, to_transaction_id=in_leg.id)
+
+
+@router.get("/count", response_model=CountOut)
+def count_transactions(
+    hid: str = Depends(current_household_id),
+    db: Session = Depends(get_db),
+    account_id: str | None = None,
+    category_id: str | None = None,
+    direction: str | None = None,
+    needs_review: bool | None = None,
+    uncategorised: bool | None = None,
+    q: str | None = None,
+    start: date | None = None,
+    end: date | None = None,
+):
+    """How many rows match the same filters the list is using, and what they add up to."""
+    stmt = select(Transaction).where(Transaction.household_id == hid)
+    if account_id:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if category_id:
+        stmt = stmt.where(Transaction.category_id == category_id)
+    if direction in ("debit", "credit"):
+        stmt = stmt.where(Transaction.direction == direction)
+    if needs_review:
+        stmt = stmt.where(Transaction.needs_review.is_(True))
+    if uncategorised:
+        stmt = stmt.where(Transaction.category_id.is_(None))
+    if q:
+        stmt = stmt.where(Transaction.merchant.ilike(f"%{q}%"))
+    if start:
+        stmt = stmt.where(Transaction.occurred_at >= start)
+    if end:
+        stmt = stmt.where(Transaction.occurred_at <= end)
+
+    rows = db.scalars(stmt).all()
+    out = sum(r.amount for r in rows if r.direction == "debit")
+    income = sum(r.amount for r in rows if r.direction == "credit")
+    return CountOut(count=len(rows), out=out, income=income, net=income - out)
