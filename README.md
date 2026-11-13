@@ -23,8 +23,8 @@ gullak/
 │   └── package.json
 ├── api/                    the FastAPI service
 │   ├── app/                main, models, schemas, security, routers/, services/, seed
-│   ├── migrations/         001_init · 002_mvp1, including row-level security
-│   └── tests/              smoke + import suites = the MVP 0 and MVP 1 exit criteria
+│   ├── migrations/         001_init … 006, including row-level security
+│   └── tests/              smoke, import, budgets, money-flow and removal suites
 ├── prototype/              single-file HTML prototype of the same screens
 ├── docker-compose.yml      postgres + api + web
 └── .github/workflows/      pages.yml (deploy) · ci.yml (build + tests)
@@ -45,13 +45,22 @@ cd web && npm install && npm run build   # emits web/out
 With `NEXT_PUBLIC_API_URL` unset, `lib/api` swaps its HTTP transport for `lib/api/demo.ts`, a
 localStorage implementation of the same contract, so the exported site works on its own.
 
-**Full stack:**
+**Full stack, one command each:**
 
 ```bash
-docker compose up        # db :5432 · api :8000 · web :3000
+make setup     # venv (python3.12), API deps, web deps, .env files
+make dev       # API on :8000 + web on :3000, SQLite at api/gullak.db
+make help      # every target
 ```
 
-Or run the halves directly:
+Other ways in:
+
+```bash
+make web WEB_API=        # web only, on the in-browser demo store
+docker compose up        # db :5432 · api :8000 · web :3000 (same as make up)
+```
+
+Or run the halves by hand:
 
 ```bash
 cd api && pip install -r requirements.txt && uvicorn app.main:app --reload
@@ -61,9 +70,11 @@ cd web && NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ## Tests
 
 ```bash
-cd api && pip install pytest httpx && pytest -q tests     # tenant isolation + ledger maths
-cd web && npm run build                                  # typecheck + static export
+make test      # API tests + web typecheck + demo-store probe
+make check     # the same, then the production build: exactly what CI runs
 ```
+
+Or individually: `make test-api`, `make test-web`, `make typecheck`, `make build`.
 
 CI runs both on every push and pull request.
 

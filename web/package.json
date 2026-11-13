@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "npx serve out",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit -p .",
     "check:demo": "tsc src/lib/api/demo.ts --outDir .probe --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node scripts/probe-demo-store.mjs"
   },
   "dependencies": {
