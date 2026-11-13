@@ -1,12 +1,16 @@
 "use client";
 
-import { money } from "@/lib/format";
+import Link from "next/link";
+import { addDays, money, shortDate, todayISO } from "@/lib/format";
+import { ledgerHref } from "@/lib/links";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
 
 export default function DueSoon({ data }: { data: Dashboard }) {
+  const yearAgo = addDays(todayISO(), -365);
+
   return (
-    <div className={s.card}>
+    <div className={s.card} id="due">
       <div className={s.head}>
         <h2>Due this period</h2>
         <span>{data.committed ? `${money(data.committed)} committed` : ""}</span>
@@ -17,14 +21,19 @@ export default function DueSoon({ data }: { data: Dashboard }) {
       ) : (
         <div className={s.due}>
           {data.due_soon.map((item) => (
-            <div key={`${item.merchant}-${item.due}`} className={s.dueRow}>
+            <Link
+              key={`${item.merchant}-${item.due}`}
+              href={ledgerHref({ q: item.merchant, from: yearAgo, to: todayISO() })}
+              className={s.dueRow}
+              title={`Past ${item.merchant} charges`}
+            >
               <span>
                 {item.merchant} <em>· {item.cadence}</em>
               </span>
               <span>
-                <b>{money(item.amount)}</b> <em>{item.due.slice(5)}</em>
+                <b>{money(item.amount)}</b> <em>{shortDate(item.due)}</em>
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       )}

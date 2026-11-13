@@ -32,6 +32,18 @@ h1 { font-family: t.$display; font-weight: 600; letter-spacing: -0.025em; }
 
 :focus-visible { outline: 2px solid t.$green; outline-offset: 2px; }
 
+kbd {
+  font-family: t.$mono;
+  font-size: 10.5px;
+  line-height: 16px;
+  color: t.$ink2;
+  background: t.$paper;
+  border: 1px solid t.$line;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
 // Small shared helpers. Anything with structure lives in a component module.
 .num { font-family: t.$mono; font-variant-numeric: tabular-nums; }
 .muted { color: t.$dim; }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { money } from "@/lib/format";
+import { ledgerHref, spendLink } from "@/lib/links";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
 
@@ -21,7 +22,14 @@ export default function BudgetStrip({ data }: { data: Dashboard }) {
       ) : (
         <div className={s.budgets}>
           {data.budgets.slice(0, 6).map((budget) => (
-            <div key={budget.id} className={`${s.budget} ${s[budget.status] ?? ""}`}>
+            <Link
+              key={budget.id}
+              href={ledgerHref(
+                spendLink(budget.period_start, budget.period_end, budget.category_id ? { category: budget.category_id } : {}),
+              )}
+              className={`${s.budget} ${s[budget.status] ?? ""}`}
+              title={`Open the rows behind ${budget.name}`}
+            >
               <div className={s.budgetTop}>
                 <b>{budget.name}</b>
                 <span>{budget.used_pct}%</span>
@@ -35,7 +43,7 @@ export default function BudgetStrip({ data }: { data: Dashboard }) {
                 <span>{money(budget.spent)} spent</span>
                 <span>{budget.elapsed_pct}% elapsed</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

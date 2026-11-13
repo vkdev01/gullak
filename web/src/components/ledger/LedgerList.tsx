@@ -54,10 +54,14 @@ export default function LedgerList({
 }: Props) {
   if (loading && days.length === 0) {
     return (
-      <div className={s.list}>
-        <div className={s.empty}>
-          <p className="small muted">Loading…</p>
-        </div>
+      <div className={s.list} aria-busy="true" aria-label="Loading the ledger">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className={s.skeletonRow} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+        ))}
       </div>
     );
   }

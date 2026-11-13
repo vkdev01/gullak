@@ -1,25 +1,43 @@
 "use client";
 
-import { monthLabelFromKey } from "@/lib/format";
+import { monthLabelFromKey, shortDate } from "@/lib/format";
+import type { DateRange } from "@/hooks/useLedger";
 import s from "./ledger.module.scss";
 
 type Props = {
   month: string;
   allTime: boolean;
+  range: DateRange | null;
   isCurrentMonth: boolean;
   onStep: (delta: number) => void;
   onThisMonth: () => void;
   onToggleAllTime: () => void;
+  onClearRange: () => void;
 };
 
-export default function PeriodNav({ month, allTime, isCurrentMonth, onStep, onThisMonth, onToggleAllTime }: Props) {
+function rangeLabel(range: DateRange) {
+  return range.start === range.end ? shortDate(range.start) : `${shortDate(range.start)} – ${shortDate(range.end)}`;
+}
+
+export default function PeriodNav({
+  month,
+  allTime,
+  range,
+  isCurrentMonth,
+  onStep,
+  onThisMonth,
+  onToggleAllTime,
+  onClearRange,
+}: Props) {
   return (
     <div className={s.periodNav}>
       <div className={s.stepper}>
         <button type="button" onClick={() => onStep(-1)} aria-label="Previous month" className={s.stepBtn}>
           ‹
         </button>
-        <span className={s.stepLabel}>{allTime ? "All time" : monthLabelFromKey(month)}</span>
+        <span className={s.stepLabel}>
+          {range ? rangeLabel(range) : allTime ? "All time" : monthLabelFromKey(month)}
+        </span>
         <button
           type="button"
           onClick={() => onStep(1)}
@@ -31,7 +49,13 @@ export default function PeriodNav({ month, allTime, isCurrentMonth, onStep, onTh
         </button>
       </div>
 
-      {!isCurrentMonth && !allTime && (
+      {range && (
+        <button type="button" className={`${s.jump} ${s.jumpOn}`} onClick={onClearRange} aria-label="Clear date range">
+          Linked dates ×
+        </button>
+      )}
+
+      {!isCurrentMonth && !allTime && !range && (
         <button type="button" className={s.jump} onClick={onThisMonth}>
           This month
         </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { money } from "@/lib/format";
 import type { Category, Txn } from "@/lib/api";
 import s from "./ledger.module.scss";
@@ -16,21 +16,33 @@ const TINT: Record<string, string> = { green: s.cGreen, clay: s.cClay, butter: s
 
 export default function LedgerRow({ transaction, categories, onRecategorise, onOpen }: Props) {
   const [editing, setEditing] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
   const incoming = transaction.direction === "credit";
   const category = categories.find((c) => c.id === transaction.category_id);
   const leaves = categories.filter((c) => c.parent_id);
   const tint = category ? TINT[category.colour] ?? s.cGreen : s.cNone;
 
+  const stopEditing = (refocus: boolean) => {
+    setEditing(false);
+    if (refocus) requestAnimationFrame(() => rowRef.current?.focus());
+  };
+
   return (
     <div
+      ref={rowRef}
       className={s.row}
       role="row"
       tabIndex={0}
+      data-ledger-row=""
       onClick={() => onOpen(transaction.id)}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " " || e.key === "o") {
           e.preventDefault();
           onOpen(transaction.id);
+        } else if (e.key === "e") {
+          e.preventDefault();
+          setEditing(true);
         }
       }}
     >
@@ -52,11 +64,18 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
             className={s.chipSelect}
             autoFocus
             value={transaction.category_id ?? ""}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => {
               onRecategorise(transaction.id, e.target.value);
-              setEditing(false);
+              stopEditing(true);
             }}
-            onBlur={() => setEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                stopEditing(true);
+              }
+            }}
+            onBlur={() => stopEditing(false)}
             aria-label={`Category for ${transaction.merchant}`}
           >
             <option value="">Uncategorised</option>
