@@ -49,3 +49,32 @@ def contribute(
     db.commit()
     status = next(g for g in plan.goal_statuses(db, hid, date.today()) if g.id == goal.id)
     return GoalOut(**vars(status))
+
+
+@router.delete("/{goal_id}/contributions/latest", response_model=GoalOut)
+def undo_last_contribution(goal_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    goal = db.get(Goal, goal_id)
+    if not goal or goal.household_id != hid:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    last = db.scalars(
+        select(GoalContribution)
+        .where(GoalContribution.goal_id == goal.id)
+        .order_by(GoalContribution.contributed_on.desc(), GoalContribution.created_at.desc())
+    ).first()
+    if not last:
+        raise HTTPException(status_code=404, detail="Nothing to undo: no contributions yet")
+    db.delete(last)
+    db.commit()
+    status = next(g for g in plan.goal_statuses(db, hid, date.today()) if g.id == goal.id)
+    return GoalOut(**vars(status))
+
+
+@router.delete("/{goal_id}", status_code=204)
+def delete_goal(goal_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    goal = db.get(Goal, goal_id)
+    if not goal or goal.household_id != hid:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    for contribution in db.scalars(select(GoalContribution).where(GoalContribution.goal_id == goal.id)):
+        db.delete(contribution)
+    db.delete(goal)
+    db.commit()

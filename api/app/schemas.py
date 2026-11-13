@@ -90,9 +90,9 @@ class CategoryOut(CategoryIn):
 class TransactionIn(BaseModel):
     account_id: str
     amount: int = Field(gt=0)  # paise
-    direction: str = "debit"
+    direction: str = Field(default="debit", pattern="^(debit|credit)$")
     occurred_at: date
-    merchant: str
+    merchant: str = Field(min_length=1, max_length=160)
     category_id: str | None = None
     note: str = Field(default="", max_length=2000)
     tags: list[str] = []
@@ -103,6 +103,22 @@ class TransactionPatch(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
     tags: list[str] | None = None
     merchant: str | None = Field(default=None, min_length=1, max_length=160)
+    amount: int | None = Field(default=None, gt=0)
+    occurred_at: date | None = None
+    direction: str | None = Field(default=None, pattern="^(debit|credit)$")
+
+
+class BulkDeleteIn(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=500)
+
+
+class DeletedOut(BaseModel):
+    deleted: int
+
+
+class RemovedOut(BaseModel):
+    result: str  # deleted | archived
+    transactions: int = 0
 
 
 class TransactionOut(BaseModel):

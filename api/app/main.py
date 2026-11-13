@@ -30,6 +30,7 @@ def _upgrade_dev_sqlite() -> None:
             ("accounts", "monthly_amount", "BIGINT"),
             ("accounts", "current_value", "BIGINT"),
             ("accounts", "value_as_of", "DATE"),
+            ("goal_contributions", "created_at", "DATETIME"),
         ]
         if inspector.has_table(table) and column not in {c["name"] for c in inspector.get_columns(table)}
     ]

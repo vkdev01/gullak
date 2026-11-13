@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -203,3 +203,4 @@ class GoalContribution(Base):
     contributed_on: Mapped[date] = mapped_column(Date, default=date.today)
     transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
     note: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=True)

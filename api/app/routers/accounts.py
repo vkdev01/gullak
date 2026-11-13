@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import current_household_id
-from ..models import Account, Household, Transaction
-from ..schemas import AccountIn, AccountOut, AccountPatch
+from ..models import Account, Goal, Household, ImportBatch, Transaction
+from ..schemas import AccountIn, AccountOut, AccountPatch, RemovedOut
 from ..services import flows
 from ..services.periods import period_bounds
 
@@ -94,8 +94,18 @@ def update_account(account_id: str, body: AccountPatch, hid: str = Depends(curre
     return _out(db, a, _window(db, hid))
 
 
-@router.delete("/{account_id}", status_code=204)
-def archive_account(account_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+@router.delete("/{account_id}", response_model=RemovedOut)
+def remove_account(account_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """An account made by mistake is deleted; one with history is archived, so no row loses its account."""
     a = _owned(db, hid, account_id)
-    a.archived = True
+    used = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.account_id == a.id)) or 0
+    batches = db.scalar(select(func.count()).select_from(ImportBatch).where(ImportBatch.account_id == a.id)) or 0
+    if used or batches:
+        a.archived = True
+        db.commit()
+        return RemovedOut(result="archived", transactions=used)
+    for goal in db.scalars(select(Goal).where(Goal.account_id == a.id)):
+        goal.account_id = None
+    db.delete(a)
     db.commit()
+    return RemovedOut(result="deleted")

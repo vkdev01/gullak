@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..deps import current_household_id
-from ..models import Account, ImportBatch, ImportRow, Transaction
+from ..models import Account, GoalContribution, ImportBatch, ImportRow, Transaction
 from ..schemas import (
+    DeletedOut,
     ImportBatchOut,
     ImportCommitIn,
     ImportPreviewIn,
@@ -158,6 +159,25 @@ def get_batch(batch_id: str, hid: str = Depends(current_household_id), db: Sessi
     names = {cid: name for name, cid in categories.items()}
     rows = db.scalars(select(ImportRow).where(ImportRow.batch_id == batch.id).order_by(ImportRow.line_no)).all()
     return ImportPreviewOut(batch=_batch_out(batch), rows=[_row_out(r, names.get(r.category_id or "")) for r in rows])
+
+
+@router.delete("/{batch_id}", response_model=DeletedOut)
+def undo_import(batch_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """Throw away a preview, or take back everything a committed import added."""
+    batch = db.get(ImportBatch, batch_id)
+    if not batch or batch.household_id != hid:
+        raise HTTPException(status_code=404, detail="Import not found")
+
+    ids = list(db.scalars(select(Transaction.id).where(Transaction.household_id == hid, Transaction.import_batch_id == batch.id)))
+    for contribution in db.scalars(select(GoalContribution).where(GoalContribution.transaction_id.in_(ids))) if ids else []:
+        contribution.transaction_id = None
+    for tx in db.scalars(select(Transaction).where(Transaction.id.in_(ids))) if ids else []:
+        db.delete(tx)
+    for row in db.scalars(select(ImportRow).where(ImportRow.batch_id == batch.id)):
+        db.delete(row)
+    db.delete(batch)
+    db.commit()
+    return DeletedOut(deleted=len(ids))
 
 
 @router.post("/{batch_id}/commit", response_model=ImportBatchOut)
