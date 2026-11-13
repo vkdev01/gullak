@@ -6,13 +6,14 @@ export type LedgerLink = {
   from?: string;
   to?: string;
   q?: string;
+  tag?: string;
   view?: "review" | "uncategorised";
   account?: string;
   transfers?: "exclude";
   when?: "all";
 };
 
-const KEYS: (keyof LedgerLink)[] = ["category", "direction", "from", "to", "q", "view", "account", "transfers", "when"];
+const KEYS: (keyof LedgerLink)[] = ["category", "direction", "from", "to", "q", "tag", "view", "account", "transfers", "when"];
 
 export function ledgerHref(link: LedgerLink = {}): string {
   const qs = new URLSearchParams();
@@ -37,6 +38,7 @@ export function parseLedgerLink(params: URLSearchParams): LedgerLink {
     from: ISO.test(from) ? from : undefined,
     to: ISO.test(to) ? to : undefined,
     q: params.get("q") || undefined,
+    tag: params.get("tag") || undefined,
     view: view === "review" || view === "uncategorised" ? view : undefined,
     account: params.get("account") || undefined,
     transfers: params.get("transfers") === "exclude" ? "exclude" : undefined,

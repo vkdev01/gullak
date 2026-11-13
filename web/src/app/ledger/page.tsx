@@ -147,8 +147,8 @@ function LedgerPage() {
       </section>
 
       <QuickAddBar
-        onAdd={({ amount, merchant, date }) =>
-          ledger.add({ accountId: ledger.filters.accountId || accounts[0]?.id, amount, merchant, date })
+        onAdd={({ amount, merchant, date, note, tags }) =>
+          ledger.add({ accountId: ledger.filters.accountId || accounts[0]?.id, amount, merchant, date, note, tags })
         }
       />
 
@@ -203,6 +203,7 @@ function LedgerPage() {
           onClose={() => setOpenId(null)}
           onRecategorise={ledger.recategorise}
           onReviewed={() => void ledger.reload()}
+          onChanged={() => void ledger.reload()}
         />
       )}
 
