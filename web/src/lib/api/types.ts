@@ -165,3 +165,5 @@ export type Series = {
 };
 
 export type GroupRow = { key: string; label: string; total: number; count: number };
+
+export type Count = { count: number; out: number; income: number; net: number };

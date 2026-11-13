@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { isDemoMode } from "@/lib/api";
-import { money, monthLabel, todayISO } from "@/lib/format";
+import { money, monthLabelFromKey } from "@/lib/format";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useLedger } from "@/hooks/useLedger";
 import LedgerList from "@/components/ledger/LedgerList";
 import LedgerToolbar from "@/components/ledger/LedgerToolbar";
+import Pagination from "@/components/ledger/Pagination";
+import PeriodNav from "@/components/ledger/PeriodNav";
 import QuickAddBar from "@/components/ledger/QuickAddBar";
 import Button from "@/components/ui/Button";
 import s from "./page.module.scss";
@@ -20,7 +22,6 @@ export default function LedgerPage() {
   const [seeding, setSeeding] = useState(false);
 
   const reviewCount = useMemo(() => ledger.transactions.filter((t) => t.needs_review).length, [ledger.transactions]);
-
 
   async function seed() {
     setSeeding(true);
@@ -42,13 +43,15 @@ export default function LedgerPage() {
     );
   }
 
+  const periodLabel = ledger.allTime ? "All time" : monthLabelFromKey(ledger.month);
+
   return (
     <main className={s.page}>
       <header className={s.header}>
         <div>
           <h1 className={s.title}>Ledger</h1>
           <p className={s.sub}>
-            {monthLabel(todayISO())} · every row, in order, with where it came from
+            {periodLabel} · {ledger.totals.count} {ledger.totals.count === 1 ? "entry" : "entries"}
           </p>
         </div>
         <div className={s.actions}>
@@ -62,23 +65,21 @@ export default function LedgerPage() {
 
       <section className={s.period}>
         <div className={s.periodMain}>
-          <span className={s.periodLabel}>Spent this month</span>
-          <span className={s.periodValue}>{money(ledger.summary?.spent ?? 0)}</span>
+          <span className={s.periodLabel}>Spent · {periodLabel}</span>
+          <span className={s.periodValue}>{money(ledger.totals.out)}</span>
         </div>
         <div className={s.periodSide}>
           <div>
             <span className={s.periodLabel}>In</span>
-            <span className={s.periodSmall}>{money(ledger.summary?.income ?? 0)}</span>
+            <span className={s.periodSmall}>{money(ledger.totals.income)}</span>
           </div>
           <div>
             <span className={s.periodLabel}>Net</span>
-            <span className={`${s.periodSmall} ${(ledger.summary?.net ?? 0) < 0 ? s.neg : ""}`}>
-              {money(ledger.summary?.net ?? 0)}
-            </span>
+            <span className={`${s.periodSmall} ${ledger.totals.net < 0 ? s.neg : ""}`}>{money(ledger.totals.net)}</span>
           </div>
           <div>
             <span className={s.periodLabel}>Entries</span>
-            <span className={s.periodSmall}>{ledger.summary?.count ?? 0}</span>
+            <span className={s.periodSmall}>{ledger.totals.count}</span>
           </div>
         </div>
       </section>
@@ -98,22 +99,35 @@ export default function LedgerPage() {
         seeding={seeding}
       />
 
+      <PeriodNav
+        month={ledger.month}
+        allTime={ledger.allTime}
+        isCurrentMonth={ledger.isCurrentMonth}
+        onStep={ledger.stepMonth}
+        onThisMonth={() => ledger.setMonth(ledger.month)}
+        onToggleAllTime={ledger.showAllTime}
+      />
+
       <LedgerList
         days={ledger.days}
         categories={categories}
         view={ledger.filters.view}
         hasAny={ledger.transactions.length > 0}
+        loading={ledger.loading}
         total={ledger.totals.count}
         out={ledger.totals.out}
         income={ledger.totals.income}
-        selectedId={null}
-        hasMore={ledger.hasMore}
-        loadingMore={ledger.loadingMore}
-        onSelect={() => {}}
         onRecategorise={ledger.recategorise}
-        onLoadMore={ledger.loadMore}
         onSeed={seed}
         seeding={seeding}
+      />
+
+      <Pagination
+        page={ledger.page}
+        pageCount={ledger.pageCount}
+        pageSize={ledger.pageSize}
+        total={ledger.totals.count}
+        onPage={ledger.setPage}
       />
 
       {isDemoMode() && (

@@ -8,8 +8,6 @@ import s from "./ledger.module.scss";
 type Props = {
   transaction: Txn;
   categories: Category[];
-  selected: boolean;
-  onSelect: () => void;
   onRecategorise: (id: string, categoryId: string) => void;
 };
 
@@ -22,7 +20,7 @@ const SOURCE_LABEL: Record<string, string> = {
   rule: "categorised by a rule",
 };
 
-export default function LedgerRow({ transaction, categories, selected, onSelect, onRecategorise }: Props) {
+export default function LedgerRow({ transaction, categories, onRecategorise }: Props) {
   const [editing, setEditing] = useState(false);
   const incoming = transaction.direction === "credit";
   const category = categories.find((c) => c.id === transaction.category_id);
@@ -31,7 +29,7 @@ export default function LedgerRow({ transaction, categories, selected, onSelect,
   const tint = category ? TINT[category.colour] ?? s.cGreen : s.cNone;
 
   return (
-    <div className={`${s.row} ${selected ? s.sel : ""}`} onClick={onSelect} role="row">
+    <div className={s.row} role="row">
       <div className={`${s.tile} ${tint}`} aria-hidden="true">
         {transaction.merchant.slice(0, 1).toUpperCase()}
       </div>
