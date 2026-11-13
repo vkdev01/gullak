@@ -6,6 +6,7 @@ from ..db import get_db
 from ..deps import current_household_id
 from ..models import Category
 from ..schemas import CategoryIn, CategoryOut
+from ..seed import seed_categories
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -14,6 +15,14 @@ router = APIRouter(prefix="/categories", tags=["categories"])
 def list_categories(hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
     rows = db.scalars(select(Category).where(Category.household_id == hid).order_by(Category.name)).all()
     return [CategoryOut(id=c.id, name=c.name, parent_id=c.parent_id, kind=c.kind, colour=c.colour) for c in rows]
+
+
+@router.post("/defaults", response_model=list[CategoryOut])
+def add_default_categories(hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """Bring an older household up to the current default list without touching what it has."""
+    seed_categories(db, hid)
+    db.commit()
+    return list_categories(hid, db)
 
 
 @router.post("", response_model=CategoryOut, status_code=201)

@@ -147,8 +147,10 @@ function LedgerPage() {
       </section>
 
       <QuickAddBar
-        onAdd={({ amount, merchant, date, note, tags }) =>
-          ledger.add({ accountId: ledger.filters.accountId || accounts[0]?.id, amount, merchant, date, note, tags })
+        accounts={accounts}
+        preferredAccountId={ledger.filters.accountId}
+        onAdd={({ accountId, amount, direction, merchant, date, note, tags }) =>
+          ledger.add({ accountId, amount, direction, merchant, date, note, tags })
         }
       />
 

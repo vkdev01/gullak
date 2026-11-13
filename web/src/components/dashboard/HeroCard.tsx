@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { money } from "@/lib/format";
-import { ledgerHref, spendLink } from "@/lib/links";
+import { flowLink, ledgerHref, spendLink } from "@/lib/links";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
 
@@ -10,7 +10,7 @@ type Line = { label: string; value: number; href?: string; first?: boolean };
 
 export default function HeroCard({ data }: { data: Dashboard }) {
   // The API plans against last period's income until salary lands, so rebuild that base from the identity.
-  const base = data.free_to_spend + data.spent + data.committed + data.budgeted_remaining;
+  const base = data.free_to_spend + data.spent + data.invested + data.committed + data.savings_due + data.budgeted_remaining;
   const planned = data.income === 0 && base > 0;
   const spentPct = base > 0 ? Math.min((data.spent / base) * 100, 100) : 0;
   const elapsed = Math.min(data.elapsed_pct, 100);
@@ -22,10 +22,12 @@ export default function HeroCard({ data }: { data: Dashboard }) {
       label: planned ? "Expected income" : "Income",
       value: base,
       first: true,
-      href: planned ? undefined : ledgerHref({ direction: "credit", transfers: "exclude", ...period }),
+      href: planned ? undefined : ledgerHref(flowLink("income", period.from, period.to)),
     },
     { label: "Spent so far", value: -data.spent, href: ledgerHref(spendLink(period.from, period.to)) },
+    { label: "Saved & invested", value: -data.invested, href: data.invested ? ledgerHref(flowLink("invest", period.from, period.to)) : undefined },
     { label: "Bills still due", value: -data.committed, href: data.committed ? "#due" : undefined },
+    { label: "Savings still due", value: -data.savings_due, href: data.savings_due ? "/savings/" : undefined },
     { label: "Left in budgets", value: -data.budgeted_remaining, href: data.budgeted_remaining ? "/budgets/" : undefined },
   ];
 

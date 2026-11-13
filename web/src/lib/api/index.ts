@@ -2,6 +2,7 @@ import { demo } from "./demo";
 import { hasApi, getToken, request, setToken } from "./client";
 import type {
   Account,
+  AccountInput,
   Budget,
   BudgetStatus,
   BudgetSuggestion,
@@ -11,6 +12,7 @@ import type {
   Goal,
   GroupRow,
   Household,
+  MoneySummary,
   Series,
   ImportBatch,
   ImportDecision,
@@ -25,6 +27,7 @@ import type {
 
 export type {
   Account,
+  AccountInput,
   Budget,
   BudgetStatus,
   BudgetSuggestion,
@@ -34,6 +37,8 @@ export type {
   Goal,
   GroupRow,
   Household,
+  MoneySummary,
+  PeriodFlow,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -71,8 +76,22 @@ export const api = {
 
   accounts: (): Promise<Account[]> => (isDemoMode() ? Promise.resolve(demo.accounts()) : request("/accounts")),
 
-  createAccount: (body: Partial<Account>): Promise<Account> =>
+  createAccount: (body: AccountInput): Promise<Account> =>
     isDemoMode() ? Promise.resolve(demo.createAccount(body)) : request("/accounts", { method: "POST", body: JSON.stringify(body) }),
+
+  updateAccount: (id: string, body: AccountInput): Promise<Account> =>
+    isDemoMode()
+      ? Promise.resolve(demo.updateAccount(id, body))
+      : request(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  transfer: (body: { from_account_id: string; to_account_id: string; amount: number; occurred_at: string; note?: string }) =>
+    isDemoMode() ? Promise.resolve(demo.transfer(body)) : request("/transfers", { method: "POST", body: JSON.stringify(body) }),
+
+  moneySummary: (periods = 6): Promise<MoneySummary> =>
+    isDemoMode() ? Promise.resolve(demo.moneySummary(periods)) : request(`/money/summary?periods=${periods}`),
+
+  addDefaultCategories: (): Promise<Category[]> =>
+    isDemoMode() ? Promise.resolve(demo.addDefaultCategories()) : request("/categories/defaults", { method: "POST" }),
 
   categories: (): Promise<Category[]> => (isDemoMode() ? Promise.resolve(demo.categories()) : request("/categories")),
 
@@ -194,10 +213,15 @@ export const api = {
 
   recurring: (): Promise<Series[]> => (isDemoMode() ? Promise.resolve(demo.recurring()) : request("/recurring")),
 
-  group: (by: "category" | "day" | "merchant", start?: string, end?: string): Promise<GroupRow[]> =>
+  group: (
+    by: "category" | "day" | "merchant",
+    start?: string,
+    end?: string,
+    flow: "spend" | "income" | "invest" | "withdraw" = "spend",
+  ): Promise<GroupRow[]> =>
     isDemoMode()
-      ? Promise.resolve(demo.group(by, start, end))
-      : request(`/transactions/group?by=${by}${start ? `&start=${start}` : ""}${end ? `&end=${end}` : ""}`),
+      ? Promise.resolve(demo.group(by, start, end, flow))
+      : request(`/transactions/group?by=${by}&flow=${flow}${start ? `&start=${start}` : ""}${end ? `&end=${end}` : ""}`),
 };
 
 

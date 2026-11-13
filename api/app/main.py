@@ -10,7 +10,7 @@ from .db import Base, engine, get_db
 from .deps import current_household_id
 from .models import User
 from .deps import current_user
-from .routers import accounts, auth, budgets, categories, dashboard, goals, household, imports, rules, transactions
+from .routers import accounts, auth, budgets, categories, dashboard, goals, household, imports, money, rules, transactions
 from .seed import seed_demo
 
 
@@ -24,6 +24,12 @@ def _upgrade_dev_sqlite() -> None:
         for table, column, ddl in [
             ("transactions", "tags", "TEXT NOT NULL DEFAULT ''"),
             ("budgets", "fixed", "BOOLEAN NOT NULL DEFAULT 0"),
+            ("accounts", "description", "TEXT NOT NULL DEFAULT ''"),
+            ("accounts", "interest_rate", "FLOAT"),
+            ("accounts", "maturity_date", "DATE"),
+            ("accounts", "monthly_amount", "BIGINT"),
+            ("accounts", "current_value", "BIGINT"),
+            ("accounts", "value_as_of", "DATE"),
         ]
         if inspector.has_table(table) and column not in {c["name"] for c in inspector.get_columns(table)}
     ]
@@ -80,6 +86,7 @@ app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(transactions.transfers)
 app.include_router(budgets.router)
+app.include_router(money.router)
 app.include_router(goals.router)
 app.include_router(dashboard.router)
 app.include_router(imports.router)

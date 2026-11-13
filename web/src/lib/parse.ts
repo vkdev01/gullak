@@ -3,6 +3,7 @@ import { normaliseTags } from "./tags";
 
 export type ParsedTransaction = {
   amount: number | null; // paise
+  direction: "debit" | "credit";
   merchant: string;
   date: string;
   note: string;
@@ -15,10 +16,12 @@ const DATE_WORDS: Record<string, number> = { today: 0, yesterday: -1 };
 /**
  * "320 swiggy yesterday" → { amount: 32000, merchant: "swiggy", date: … }
  * "450 petrol, full tank before the trip #car #trip" also carries a note and tags:
- * anything after ", " is the note, and #words are tags.
+ * anything after ", " is the note, and #words are tags. A leading "+" means money in.
  * Deliberately forgiving: it is a capture shortcut, not a parser to trust blindly.
  */
 export function parseQuickAdd(raw: string): ParsedTransaction {
+  const direction = /^\s*\+/.test(raw) ? "credit" : "debit";
+  raw = raw.replace(/^\s*\+\s*/, "");
   const tags = normaliseTags((raw.match(/#[\w-]+/g) ?? []).map((t) => t.slice(1)));
   const withoutTags = raw.replace(/#[\w-]+/g, " ");
   // ", " (comma then space) starts the note; a bare comma stays part of an amount like 1,200
@@ -57,5 +60,5 @@ export function parseQuickAdd(raw: string): ParsedTransaction {
 
   merchant = merchant.replace(/\s+/g, " ").replace(/^(at|on|for)\s+/i, "").trim();
 
-  return { amount, merchant: merchant || "Untitled", date, note, tags, raw: raw.trim() };
+  return { amount, direction, merchant: merchant || "Untitled", date, note, tags, raw: raw.trim() };
 }

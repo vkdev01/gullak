@@ -35,8 +35,23 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Request failed (${res.status})`);
+    throw new Error(describeError(body.detail) ?? `Request failed (${res.status})`);
   }
 
   return res.status === 204 ? (undefined as T) : res.json();
+}
+
+/** FastAPI sends a string, or for validation errors a list of {loc, msg}; turn either into a sentence. */
+function describeError(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: { loc?: (string | number)[]; msg?: string }) => {
+        const field = d.loc?.filter((p) => p !== "body").join(".");
+        return field ? `${field.replace(/_/g, " ")}: ${d.msg}` : d.msg;
+      })
+      .filter(Boolean)
+      .join("; ");
+  }
+  return null;
 }

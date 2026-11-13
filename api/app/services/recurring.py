@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Transaction
+from . import flows
 
 CADENCES = {
     "weekly": (6, 8, 7),
@@ -42,8 +43,7 @@ def detect_series(db: Session, household_id: str, today: date | None = None) -> 
             select(Transaction)
             .where(
                 Transaction.household_id == household_id,
-                Transaction.direction == "debit",
-                Transaction.transfer_id.is_(None),
+                flows.condition("spend"),  # an SIP is saving, tracked by savings_due, not a bill
             )
             .order_by(Transaction.occurred_at)
         )

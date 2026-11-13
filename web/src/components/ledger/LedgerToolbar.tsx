@@ -21,6 +21,8 @@ const VIEWS: { key: LedgerView; label: string }[] = [
   { key: "uncategorised", label: "Uncategorised" },
 ];
 
+const FLOW_LABEL = { spend: "Spending only", income: "Income only", invest: "Saved & invested", withdraw: "Withdrawals" };
+
 export default function LedgerToolbar({
   accounts,
   categories,
@@ -87,6 +89,17 @@ export default function LedgerToolbar({
           aria-label="Show money in and out"
         >
           {filters.direction === "debit" ? "Money out only" : "Money in only"} ×
+        </button>
+      )}
+
+      {filters.flow && (
+        <button
+          type="button"
+          className={s.filterChip}
+          onClick={() => onFiltersChange({ ...filters, flow: "" })}
+          aria-label="Show every kind of row"
+        >
+          {FLOW_LABEL[filters.flow]} ×
         </button>
       )}
 

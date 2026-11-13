@@ -20,16 +20,60 @@ class TokenOut(BaseModel):
 
 
 class AccountIn(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=120)
     type: str = "bank"
     institution: str = ""
     masked_number: str = ""
     opening_balance: int = 0  # paise
+    description: str = Field(default="", max_length=2000)
+    interest_rate: float | None = Field(default=None, ge=0, le=100)
+    maturity_date: date | None = None
+    monthly_amount: int | None = Field(default=None, ge=0)
+    current_value: int | None = Field(default=None, ge=0)
+
+
+class AccountPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    institution: str | None = None
+    masked_number: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
+    interest_rate: float | None = Field(default=None, ge=0, le=100)
+    maturity_date: date | None = None
+    monthly_amount: int | None = Field(default=None, ge=0)
+    current_value: int | None = Field(default=None, ge=0)
 
 
 class AccountOut(AccountIn):
     id: str
-    balance: int
+    kind: str = "spending"  # spending | investment
+    balance: int  # opening balance plus every row: what went in minus what came out
+    value: int = 0  # current_value when known, else balance
+    gain: int | None = None
+    value_as_of: date | None = None
+    contributed_this_period: int = 0
+
+
+class PeriodFlowOut(BaseModel):
+    period_start: date
+    period_end: date
+    label: str
+    income: int
+    spent: int
+    invested: int
+    withdrawn: int
+    saved: int  # income - spent
+    savings_rate: float | None  # saved / income, %
+    invest_rate: float | None  # invested / income, %
+
+
+class MoneySummaryOut(BaseModel):
+    periods: list[PeriodFlowOut]
+    income_by_source: list["GroupRow"]
+    invested_by_type: list["GroupRow"]
+    net_worth: int
+    liquid: int
+    investments: int
+    owed: int
 
 
 class CategoryIn(BaseModel):
@@ -304,6 +348,8 @@ class DashboardOut(BaseModel):
     elapsed_pct: float
     income: int
     spent: int
+    invested: int = 0
+    savings_due: int = 0
     committed: int
     budgeted_remaining: int
     free_to_spend: int
@@ -333,6 +379,9 @@ class GroupRow(BaseModel):
     label: str
     total: int
     count: int
+
+
+MoneySummaryOut.model_rebuild()
 
 
 class CountOut(BaseModel):

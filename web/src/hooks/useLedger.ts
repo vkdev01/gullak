@@ -11,6 +11,7 @@ export type LedgerFilters = {
   categoryId: string;
   direction: "" | "debit" | "credit";
   excludeTransfers: boolean;
+  flow: "" | "spend" | "income" | "invest" | "withdraw";
   query: string;
   tag: string;
   view: LedgerView;
@@ -26,6 +27,7 @@ function filtersFrom(link: LedgerLink): LedgerFilters {
     categoryId: link.category ?? "",
     direction: link.direction ?? "",
     excludeTransfers: link.transfers === "exclude",
+    flow: link.flow ?? "",
     query: link.q ?? "",
     tag: link.tag ?? "",
     view: link.view ?? "all",
@@ -76,6 +78,7 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
         ...(filters.categoryId ? { category_id: filters.categoryId } : {}),
         ...(filters.direction ? { direction: filters.direction } : {}),
         ...(filters.excludeTransfers ? { exclude_transfers: true } : {}),
+        ...(filters.flow ? { flow: filters.flow } : {}),
         ...(filters.query.trim() ? { q: filters.query.trim() } : {}),
         ...(filters.tag ? { tag: filters.tag } : {}),
         ...(filters.view === "review" ? { needs_review: true } : {}),
@@ -156,6 +159,7 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
     async (input: {
       accountId: string;
       amount: number;
+      direction?: "debit" | "credit";
       merchant: string;
       date: string;
       note?: string;
@@ -170,7 +174,7 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
         note: input.note ?? "",
         tags: input.tags ?? [],
         category_id: input.categoryId ?? null,
-        direction: "debit",
+        direction: input.direction ?? "debit",
       });
       await reload();
     },
