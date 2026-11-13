@@ -5,12 +5,27 @@ export const site = {
   repoUrl: "https://github.com/vkdev01/gullak",
 };
 
-export const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/ledger/", label: "Ledger" },
-  { href: "/budgets/", label: "Budgets" },
-  { href: "/goals/", label: "Goals" },
-  { href: "/import/", label: "Import" },
-  { href: "/review/", label: "Review" },
-  { href: "/accounts/", label: "Accounts" },
-] as const;
+export type NavItem = { href: string; label: string };
+
+export const navGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Money",
+    items: [
+      { href: "/", label: "Dashboard" },
+      { href: "/ledger/", label: "Ledger" },
+      { href: "/review/", label: "Review" },
+      { href: "/import/", label: "Import" },
+    ],
+  },
+  {
+    label: "Plan",
+    items: [
+      { href: "/budgets/", label: "Budgets" },
+      { href: "/goals/", label: "Goals" },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [{ href: "/accounts/", label: "Accounts" }],
+  },
+];
