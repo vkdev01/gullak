@@ -22,6 +22,10 @@ jobs:
         working-directory: web
         run: npm ci || npm install
 
+      - name: Demo store smoke test
+        working-directory: web
+        run: npm run check:demo
+
       - name: Build (static export)
         working-directory: web
         env:
