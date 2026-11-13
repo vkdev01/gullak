@@ -1,0 +1,279 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.page { max-width: 1080px; margin: 0 auto; padding: 26px 22px 90px; @include m.mq(md) { padding: 18px 14px 96px; } }
+
+.header {
+  margin-bottom: 16px;
+  h1 { font-size: 26px; margin-bottom: 6px; }
+  p { color: t.$dim; font-size: 13px; max-width: 72ch; margin: 0; }
+}
+
+/* ---------- summary strip ---------- */
+.strip {
+  @include m.card;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 16px;
+
+  > div, > a {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 18px;
+    border-right: 1px solid t.$line-soft;
+    &:last-child { border-right: 0; }
+  }
+
+  a:hover { background: t.$hover; }
+  span { @include m.kicker; }
+  b { @include m.figure-lg; font-size: 22px; }
+  em { font-style: normal; font-size: 12px; color: t.$dim; }
+}
+
+.big b { font-size: 28px; }
+.neg { color: t.$clay; }
+
+.section { margin-bottom: 20px; }
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 10px;
+
+  h2 { font-size: 15px; }
+  span, a { font-size: 12.5px; color: t.$dim; }
+  a:hover { color: t.$green; }
+}
+
+.banner {
+  @include m.card;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: t.$ink2;
+  box-shadow: inset 3px 0 0 t.$green;
+}
+
+.empty { @include m.card; padding: 18px; font-size: 13px; color: t.$dim; }
+
+/* ---------- savings cards ---------- */
+.savings { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+
+.saving {
+  @include m.card;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.savingHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+
+  > div:first-child { display: flex; flex-direction: column; min-width: 0; }
+  b { font-size: 14px; font-weight: 600; }
+  span { font-size: 12px; color: t.$dim; }
+}
+
+.savingValue {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+
+  b { @include m.figure-lg; font-size: 20px; }
+}
+
+.up { color: t.$green !important; }
+.down { color: t.$clay-ink !important; }
+
+.savingNote { margin: 0; font-size: 12.5px; color: t.$ink2; font-style: italic; }
+.asOf { margin: 0; font-size: 11.5px; color: t.$dim; }
+
+.instalment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: t.$ink2;
+}
+
+.track {
+  height: 6px;
+  border-radius: 3px;
+  background: t.$sunken;
+  overflow: hidden;
+
+  i { display: block; height: 100%; background: t.$green; border-radius: 3px; }
+}
+
+.savingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding-top: 8px;
+  border-top: 1px solid t.$line-soft;
+  font-size: 12.5px;
+
+  button, a { color: t.$green; }
+  button:hover, a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  button[aria-expanded="true"] { font-weight: 600; }
+  a { margin-left: auto; color: t.$dim; }
+}
+
+.actionPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+  padding: 10px;
+  border-radius: t.$radius-sm;
+  background: t.$paper;
+  border: 1px solid t.$line-soft;
+}
+
+.actionHelp { flex-basis: 100%; margin: 0; font-size: 12px; color: t.$dim; }
+
+/* ---------- forms ---------- */
+.form {
+  @include m.card;
+  padding: 16px 18px;
+
+  h2 { font-size: 14px; margin-bottom: 12px; }
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  span { font-size: 12px; font-weight: 500; color: t.$ink2; }
+
+  input, select {
+    border: 1px solid t.$line;
+    border-radius: t.$radius-sm;
+    background: t.$card;
+    padding: 7px 10px;
+    font-size: 13.5px;
+    min-width: 0;
+    outline: none;
+
+    &:focus { border-color: t.$green; box-shadow: 0 0 0 3px t.$green-soft; }
+  }
+}
+
+.actionPanel .field { width: 160px; }
+.actionPanel .wide, .formGrid .wide { flex-basis: 100%; width: auto; grid-column: 1 / -1; }
+
+.formFoot { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-basis: 100%; }
+.actionPanel .formFoot { margin-top: 0; }
+.hint { font-size: 12.5px; color: t.$dim; margin: 10px 0 0; }
+.error { color: t.$danger; font-size: 12.5px; }
+
+/* ---------- tables ---------- */
+.table {
+  @include m.card;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 13px;
+
+  th {
+    text-align: right;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: t.$dim;
+    background: t.$sunken;
+    padding: 8px 12px;
+    border-bottom: 1px solid t.$line;
+    white-space: nowrap;
+
+    &:first-child { text-align: left; }
+  }
+
+  td {
+    text-align: right;
+    padding: 7px 12px;
+    border-bottom: 1px solid t.$line-soft;
+    white-space: nowrap;
+    @include m.figure;
+
+    &:first-child { text-align: left; font-family: t.$sans; }
+  }
+
+  tr:last-child td { border-bottom: 0; }
+  a:hover { color: t.$green; text-decoration: underline; text-underline-offset: 2px; }
+}
+
+.tableWrap { overflow-x: auto; }
+.current td { background: t.$paper; font-weight: 500; }
+
+/* ---------- source bars ---------- */
+.sources {
+  @include m.card;
+  list-style: none;
+  margin: 0;
+  padding: 6px 14px;
+
+  li { border-bottom: 1px solid t.$line-soft; &:last-child { border-bottom: 0; } }
+
+  a {
+    display: grid;
+    grid-template-columns: minmax(110px, 200px) minmax(0, 1fr) 46px 110px;
+    gap: 12px;
+    align-items: center;
+    padding: 7px 0;
+    font-size: 13px;
+
+    &:hover { color: t.$green; }
+    @include m.mq(sm) { grid-template-columns: minmax(0, 1fr) 40px 96px; }
+  }
+}
+
+.bar {
+  height: 8px;
+  border-radius: 2px;
+  background: t.$sunken;
+  overflow: hidden;
+
+  i { display: block; height: 100%; background: t.$green; }
+  @include m.mq(sm) { display: none; }
+}
+
+.share { font-size: 12px; color: t.$dim; text-align: right; }
+.amount { text-align: right; @include m.figure; }
+
+/* ---------- plain accounts list ---------- */
+.list { @include m.card; padding: 4px 16px; margin-bottom: 16px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid t.$line-soft;
+
+  &:last-child { border-bottom: 0; }
+  b { font-weight: 500; font-size: 13.5px; }
+}
+
+.grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.meta { font-size: 12px; color: t.$dim; }

@@ -25,7 +25,11 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Setup",
-    items: [{ href: "/accounts/", label: "Accounts" }],
+    label: "Wealth",
+    items: [
+      { href: "/income/", label: "Income" },
+      { href: "/savings/", label: "Savings & investments" },
+      { href: "/accounts/", label: "Accounts" },
+    ],
   },
 ];
