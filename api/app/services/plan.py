@@ -217,7 +217,7 @@ def sparkline(rows: list[Transaction], start: date, end: date) -> list[dict]:
 def _rupees(paise: int) -> str:
     """Format paise for a sentence. ₹1,24,500 — Indian grouping, no decimals."""
     rupees = paise // 100
-    text = f"{rupees:,}"
+    text = str(rupees)
     # Indian digit grouping: last three, then pairs
     head, tail = text[:-3], text[-3:]
     groups = []
@@ -349,7 +349,8 @@ def build_dashboard(db: Session, household_id: str, anchor: int, today: date, se
             )
         )
 
-    free = expected_income - committed - budgeted_remaining
+    # Spent covers budgeted and unbudgeted categories; budgeted_remaining is only what is still reserved.
+    free = expected_income - spent - committed - budgeted_remaining
     due_soon = [s for s in series if start <= s["next_due"] <= end][:5]
 
     return Dashboard(

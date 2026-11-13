@@ -697,7 +697,7 @@ export const demo = {
       spent,
       committed,
       budgeted_remaining: budgetedRemaining,
-      free_to_spend: expectedIncome - committed - budgetedRemaining,
+      free_to_spend: expectedIncome - spent - committed - budgetedRemaining,
       budgets: statuses,
       goals: d.goals.map((g) => ({ ...g, contributions: undefined })) as unknown as Goal[],
       due_soon: series
