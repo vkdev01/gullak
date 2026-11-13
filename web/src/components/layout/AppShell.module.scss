@@ -6,7 +6,7 @@
   grid-template-columns: t.$rail minmax(0, 1fr);
   min-height: 100vh;
 
-  @include m.mq(md) { grid-template-columns: 1fr; }
+  @include m.mq(md) { grid-template-columns: minmax(0, 1fr); }
 }
 
 .content { min-width: 0; }
@@ -72,7 +72,6 @@
   flex: none;
 
   .accountBtn { padding: 4px; }
-  .menu { left: auto; right: 0; bottom: auto; top: calc(100% + 6px); min-width: 160px; }
 }
 
 .accountBtn {
@@ -96,16 +95,23 @@
   em { font-style: normal; font-size: 11px; color: t.$dim; }
 }
 
+/* anchored by Headless UI, so it is positioned for us and portalled above everything */
 .menu {
-  position: absolute; left: 0; right: 0; bottom: calc(100% + 6px);
+  width: calc(t.$rail - 24px);
+  min-width: 180px;
+  margin: 6px 0;
   background: t.$card; border: 1px solid t.$line; border-radius: t.$radius-sm;
-  box-shadow: t.$shadow-pop; padding: 4px; z-index: 50;
+  box-shadow: t.$shadow-pop; padding: 4px; z-index: 80; outline: none;
+  transition: opacity 90ms ease-out;
+  &[data-closed] { opacity: 0; }
 
-  button {
-    width: 100%; text-align: left; padding: 7px 9px; border-radius: 4px; font-size: 13px;
-    &:hover { background: t.$sunken; }
+  a, button {
+    display: block; width: 100%; text-align: left; padding: 7px 9px; border-radius: 4px; font-size: 13px;
+    &[data-focus] { background: t.$green-soft; color: t.$green-ink; }
   }
 }
+
+.menuRule { height: 1px; margin: 4px 0; background: t.$line-soft; }
 
 /* ---------- top bar (mobile) ---------- */
 .top {
@@ -120,7 +126,7 @@
 }
 
 .topNav {
-  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; flex: 1;
+  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0;
   &::-webkit-scrollbar { display: none; }
 
   a {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import { api, type Account } from "@/lib/api";
 import { ACCOUNT_TYPE_LABEL, INVESTMENT_TYPES, SPENDING_TYPES, isInvestment } from "@/lib/flows";
 import { parseRupees } from "@/lib/format";
@@ -70,16 +71,15 @@ export default function AccountForm({ kind, onCreated }: Props) {
     <form className={s.form} onSubmit={submit}>
       <h2>{kind === "investment" ? "Add a savings or investment account" : "Add an account"}</h2>
       <div className={s.formGrid}>
-        <label className={s.field}>
+        <div className={s.field}>
           <span>Type</span>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {ACCOUNT_TYPE_LABEL[t]}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Select
+            value={type}
+            onChange={setType}
+            aria-label="Account type"
+            options={types.map((t) => ({ value: t, label: ACCOUNT_TYPE_LABEL[t] }))}
+          />
+        </div>
         <label className={s.field}>
           <span>Name</span>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={investment ? "SBI RD \u2014 car fund" : "HDFC Savings"} />

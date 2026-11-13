@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
+import Select from "@/components/ui/Select";
 import { api, type BudgetStatus, type BudgetSuggestion, type Category } from "@/lib/api";
 import { money, parseRupees } from "@/lib/format";
 import s from "./budgets.module.scss";
@@ -13,8 +15,6 @@ type Props = {
   onCreate: (input: { category_id: string | null; amount: number; rollover: boolean; fixed: boolean }) => Promise<void>;
   onCategoryCreated: (category: Category) => Promise<void> | void;
 };
-
-const NEW = "__new__";
 
 export default function NewBudgetForm({ categories, budgets, averageFor, onCreate, onCategoryCreated }: Props) {
   const [categoryId, setCategoryId] = useState("");
@@ -28,7 +28,8 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
 
   const budgeted = useMemo(() => new Set(budgets.map((b) => b.category_id)), [budgets]);
   const groups = useMemo(() => categories.filter((c) => !c.parent_id && c.kind === "expense"), [categories]);
-  const average = categoryId && categoryId !== NEW ? averageFor(categoryId) : null;
+  const [creating, setCreating] = useState(false);
+  const average = categoryId ? averageFor(categoryId) : null;
 
   async function createCategory() {
     if (!newName.trim() || !newParent) return;
@@ -38,6 +39,7 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
       await onCategoryCreated(made);
       setCategoryId(made.id);
       setNewName("");
+      setCreating(false);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -49,7 +51,7 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const paise = parseRupees(amount);
-    if (!categoryId || categoryId === NEW) return setError("Pick a category");
+    if (!categoryId) return setError("Pick a category");
     if (!paise) return setError("Enter an amount above zero");
     setBusy(true);
     try {
@@ -77,35 +79,27 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
       </div>
 
       <div className={s.formRow}>
-        <label className={s.inline}>
+        <div className={s.inline}>
           <span>Category</span>
-          <select
+          <CategoryPicker
+            categories={categories}
             value={categoryId}
-            onChange={(e) => {
-              setCategoryId(e.target.value);
+            allowGroups
+            kinds={["expense"]}
+            disabledIds={budgeted}
+            disabledHint="budgeted"
+            placeholder="Search, e.g. fuel or transport"
+            aria-label="Category to budget"
+            className={s.picker}
+            onChange={(id) => {
+              setCategoryId(id);
               setError(null);
             }}
-          >
-            <option value="">Choose…</option>
-            {groups.map((group) => (
-              <optgroup key={group.id} label={group.name}>
-                <option value={group.id} disabled={budgeted.has(group.id)}>
-                  All of {group.name}
-                  {budgeted.has(group.id) ? " (budgeted)" : ""}
-                </option>
-                {categories
-                  .filter((c) => c.parent_id === group.id)
-                  .map((c) => (
-                    <option key={c.id} value={c.id} disabled={budgeted.has(c.id)}>
-                      {c.name}
-                      {budgeted.has(c.id) ? " (budgeted)" : ""}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-            <option value={NEW}>+ New category…</option>
-          </select>
-        </label>
+          />
+          <button type="button" className={s.link} onClick={() => setCreating((v) => !v)}>
+            {creating ? "Cancel new category" : "+ New category"}
+          </button>
+        </div>
 
         <label className={s.inline}>
           <span>Per period (₹)</span>
@@ -122,7 +116,7 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
           Fixed bill
         </label>
 
-        <Button type="submit" disabled={busy || !categoryId || categoryId === NEW}>
+        <Button type="submit" disabled={busy || !categoryId}>
           {busy ? "Saving…" : "Add budget"}
         </Button>
       </div>
@@ -137,23 +131,23 @@ export default function NewBudgetForm({ categories, budgets, averageFor, onCreat
         </p>
       )}
 
-      {categoryId === NEW && (
+      {creating && (
         <div className={s.newCategory}>
           <label className={s.inline}>
             <span>New category</span>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Bike EMI" autoFocus />
           </label>
-          <label className={s.inline}>
+          <div className={s.inline}>
             <span>Under</span>
-            <select value={newParent} onChange={(e) => setNewParent(e.target.value)}>
-              <option value="">Choose a group…</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select
+              className={s.picker}
+              value={newParent}
+              onChange={setNewParent}
+              placeholder="Choose a group…"
+              aria-label="Parent group for the new category"
+              options={groups.map((g) => ({ value: g.id, label: g.name }))}
+            />
+          </div>
           <Button type="button" variant="ghost" onClick={() => void createCategory()} disabled={busy || !newName.trim() || !newParent}>
             Create category
           </Button>

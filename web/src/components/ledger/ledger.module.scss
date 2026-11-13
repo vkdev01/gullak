@@ -97,18 +97,6 @@
   &:focus-within { border-color: t.$green; }
 }
 
-.select {
-  border: 1px solid t.$line;
-  background: t.$card;
-  border-radius: t.$radius-sm;
-  padding: 6px 10px;
-  font-size: 12.5px;
-  color: t.$ink;
-  outline: none;
-
-  &:focus { border-color: t.$green; }
-}
-
 .segment {
   display: flex;
   gap: 2px;
@@ -295,17 +283,6 @@
   border-color: t.$line;
   color: t.$dim;
   background: transparent;
-}
-
-.chipSelect {
-  font-size: 11.5px;
-  border: 1px solid t.$green;
-  border-radius: 4px;
-  padding: 2px 6px;
-  background: t.$card;
-  color: t.$ink;
-  max-width: 160px;
-  outline: none;
 }
 
 .account {
@@ -700,17 +677,12 @@
 
 .quickAccount {
   flex: none;
-  max-width: 180px;
-  border: 0;
-  border-left: 1px solid t.$line;
-  background: transparent;
-  padding: 4px 8px;
-  font-size: 12.5px;
-  color: t.$ink2;
-  outline: none;
+  width: 170px;
 
-  @include m.mq(sm) { max-width: 110px; }
+  @include m.mq(sm) { width: 110px; }
 }
+
+.filterSelect { width: 180px; flex: none; }
 
 .quickError {
   margin: -6px 0 12px 14px;

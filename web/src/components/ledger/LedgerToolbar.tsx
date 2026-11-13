@@ -1,6 +1,8 @@
 "use client";
 
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
+import Select from "@/components/ui/Select";
 import { isDemoMode, type Account, type Category } from "@/lib/api";
 import type { LedgerFilters, LedgerView } from "@/hooks/useLedger";
 import s from "./ledger.module.scss";
@@ -32,8 +34,6 @@ export default function LedgerToolbar({
   onSeed,
   seeding,
 }: Props) {
-  const parents = categories.filter((c) => !c.parent_id);
-
   return (
     <div className={s.toolbar}>
       <div className={s.search}>
@@ -47,39 +47,25 @@ export default function LedgerToolbar({
         <kbd className={s.kbd}>/</kbd>
       </div>
 
-      <select
-        className={s.select}
+      <Select
+        size="sm"
+        className={s.filterSelect}
         value={filters.accountId}
-        onChange={(e) => onFiltersChange({ ...filters, accountId: e.target.value })}
+        onChange={(accountId) => onFiltersChange({ ...filters, accountId })}
         aria-label="Filter by account"
-      >
-        <option value="">All accounts</option>
-        {accounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name}
-          </option>
-        ))}
-      </select>
+        options={[{ value: "", label: "All accounts" }, ...accounts.map((a) => ({ value: a.id, label: a.name }))]}
+      />
 
-      <select
-        className={s.select}
+      <CategoryPicker
+        size="sm"
+        className={s.filterSelect}
+        categories={categories}
         value={filters.categoryId}
-        onChange={(e) => onFiltersChange({ ...filters, categoryId: e.target.value })}
+        emptyLabel="All categories"
+        placeholder="All categories"
         aria-label="Filter by category"
-      >
-        <option value="">All categories</option>
-        {parents.map((p) => (
-          <optgroup key={p.id} label={p.name}>
-            {categories
-              .filter((c) => c.parent_id === p.id)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </optgroup>
-        ))}
-      </select>
+        onChange={(categoryId) => onFiltersChange({ ...filters, categoryId })}
+      />
 
       {filters.direction && (
         <button

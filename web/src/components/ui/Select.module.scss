@@ -1,0 +1,116 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+/* Shared look for Select (Headless Listbox) and CategoryPicker (Headless Combobox). */
+
+.trigger, .input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid t.$line;
+  border-radius: t.$radius-sm;
+  background: t.$card;
+  color: t.$ink;
+  padding: 7px 10px;
+  font-size: 13.5px;
+  text-align: left;
+  outline: none;
+  cursor: pointer;
+
+  &:hover { border-color: t.$dim; }
+  &[data-focus], &:focus { border-color: t.$green; box-shadow: 0 0 0 3px t.$green-soft; }
+  &[data-disabled] { opacity: 0.55; cursor: default; }
+}
+
+.input { cursor: text; padding-right: 30px; }
+
+.sm .trigger, .sm .input { padding: 4px 8px; font-size: 12.5px; }
+.sm .input { padding-right: 26px; }
+
+/* bare: sits inside another control, e.g. the quick-add bar */
+.bare .trigger {
+  border: 0;
+  border-left: 1px solid t.$line;
+  border-radius: 0;
+  background: transparent;
+  color: t.$ink2;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  &[data-focus] { box-shadow: none; color: t.$ink; }
+}
+
+.value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.placeholder { color: t.$dim; }
+
+.chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: t.$dim;
+}
+
+.field { position: relative; display: flex; min-width: 0; width: 100%; }
+
+.inputChevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: t.$dim;
+  padding: 2px;
+}
+
+/* ---------- popover ---------- */
+.options {
+  z-index: 70;
+  width: var(--button-width, var(--input-width));
+  min-width: 220px;
+  max-height: min(340px, var(--anchor-max-height, 340px));
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: t.$card;
+  border: 1px solid t.$line;
+  border-radius: t.$radius-sm;
+  box-shadow: t.$shadow-pop;
+  outline: none;
+  transition: opacity 90ms ease-out;
+
+  &[data-closed] { opacity: 0; }
+}
+
+.option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: t.$ink;
+  cursor: pointer;
+  user-select: none;
+
+  &[data-focus] { background: t.$green-soft; color: t.$green-ink; }
+  &[data-selected] { font-weight: 600; }
+  &[data-disabled] { color: t.$dim; cursor: default; background: none; }
+
+  em { font-style: normal; font-size: 11.5px; color: t.$dim; white-space: nowrap; }
+}
+
+.indent { padding-left: 20px; }
+
+.group {
+  @include m.kicker;
+  padding: 8px 10px 3px;
+  font-size: 10.5px;
+
+  &:first-child { padding-top: 4px; }
+}
+
+.empty { padding: 10px; font-size: 12.5px; color: t.$dim; }

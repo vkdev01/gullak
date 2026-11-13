@@ -2,7 +2,7 @@
   "name": "gullak",
   "version": "0.1.0",
   "private": true,
-  "description": "Gullak \u2014 an AI-agentic savings platform. MVP 0: the ledger.",
+  "description": "Gullak — an AI-agentic savings platform. MVP 0: the ledger.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +11,7 @@
     "check:demo": "tsc src/lib/api/demo.ts --outDir .probe --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node scripts/probe-demo-store.mjs"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "next": "15.1.0",
     "react": "19.0.0",
     "react-dom": "19.0.0"

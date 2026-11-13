@@ -164,7 +164,7 @@
 
   span { font-size: 12px; font-weight: 500; color: t.$ink2; }
 
-  input, select {
+  > input, > select {
     border: 1px solid t.$line;
     border-radius: t.$radius-sm;
     background: t.$card;

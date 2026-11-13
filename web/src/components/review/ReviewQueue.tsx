@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
 import { money } from "@/lib/format";
 import type { Category, ReviewRow } from "@/lib/api";
 import s from "./review.module.scss";
@@ -49,14 +50,15 @@ export default function ReviewQueue({ rows, categories, selected, busy, onToggle
           {selected.length > 0 ? `${selected.length} selected` : "Select all"}
         </label>
 
-        <select className={s.select} value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} aria-label="Category">
-          <option value="">Choose a category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <CategoryPicker
+          categories={categories}
+          value={bulkCategory}
+          onChange={setBulkCategory}
+          placeholder="Category for the selected rows…"
+          aria-label="Category for the selected rows"
+          size="sm"
+          className={s.bulkPicker}
+        />
 
         <Button
           size="sm"
@@ -87,19 +89,14 @@ export default function ReviewQueue({ rows, categories, selected, busy, onToggle
             </div>
 
             <div className={s.cat}>
-              <select
-                className={s.select}
+              <CategoryPicker
+                categories={categories}
                 value={row.category_id ?? row.suggested_category_id ?? ""}
-                onChange={(e) => onAssign(e.target.value, [row.id])}
+                emptyLabel="Uncategorised"
+                size="sm"
                 aria-label={`Category for ${row.merchant}`}
-              >
-                <option value="">Uncategorised</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => onAssign(id, [row.id])}
+              />
             </div>
 
             <div className={s.amount}>

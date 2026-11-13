@@ -15,9 +15,9 @@
 .field {
   display: flex; flex-direction: column; gap: 5px; min-width: 180px; flex: 1;
 
-  label { font-size: 12px; font-weight: 500; color: t.$ink2; }
+  label, .fieldLabel { font-size: 12px; font-weight: 500; color: t.$ink2; }
 
-  select, input {
+  > select, > input {
     border: 1px solid t.$line; background: t.$card; border-radius: t.$radius-sm;
     padding: 9px 11px; font-size: 13px; outline: none;
 
@@ -95,10 +95,7 @@
   font-family: t.$mono; font-size: 11px; color: t.$ink;
 }
 
-.catSelect {
-  border: 1px solid t.$line; border-radius: t.$radius-sm; padding: 3px 8px;
-  font-size: 11px; background: t.$card; color: t.$ink; max-width: 140px;
-}
+.catPicker { min-width: 170px; }
 
 .amount { text-align: right; @include m.figure; white-space: nowrap; }
 
