@@ -24,6 +24,8 @@ class BudgetStatus:
     name: str
     category_id: str | None
     category_name: str | None
+    parent_id: str | None
+    scope: str  # overall | group | category
     period_start: date
     period_end: date
     allocated: int
@@ -34,6 +36,11 @@ class BudgetStatus:
     elapsed_pct: float
     status: str  # on_track | at_risk | over
     rollover: bool
+    fixed: bool
+    category_kind: str | None  # "income" marks a budget made before income budgets were refused
+    days_left: int
+    daily_allowance: int  # paise per remaining day, never negative
+    projected: int | None  # end-of-period spend at the current pace; None too early to say
 
 
 @dataclass
@@ -83,18 +90,19 @@ def spend_rows(db: Session, household_id: str, start: date, end: date) -> list[T
     )
 
 
-def _budget_spent(budget: Budget, rows: list[Transaction], start: date, end: date) -> int:
+def _budget_spent(scope: set[str] | None, rows: list[Transaction], start: date, end: date) -> int:
+    """scope=None is the overall budget: every debit counts."""
     total = 0
     for row in rows:
         if not (start <= row.occurred_at <= end):
             continue
-        if budget.category_id and row.category_id != budget.category_id:
+        if scope is not None and row.category_id not in scope:
             continue
         total += row.amount
     return total
 
 
-def _carried_in(budget: Budget, rows: list[Transaction], anchor: int, current_start: date) -> int:
+def _carried_in(budget: Budget, scope: set[str] | None, rows: list[Transaction], anchor: int, current_start: date) -> int:
     """Walk forward from the budget's first period, carrying what rollover allows."""
     if not budget.rollover:
         return 0
@@ -103,7 +111,7 @@ def _carried_in(budget: Budget, rows: list[Transaction], anchor: int, current_st
     guard = 0
     while start < current_start and guard < 24:  # two years of history is plenty
         end = period_bounds(anchor, start)[1]
-        carried = carried + budget.amount - _budget_spent(budget, rows, start, end)
+        carried = carried + budget.amount - _budget_spent(scope, rows, start, end)
         start = _next_start(anchor, start)
         guard += 1
     return carried
@@ -113,33 +121,69 @@ def _next_start(anchor: int, start: date) -> date:
     return period_bounds(anchor, start + timedelta(days=32))[0]
 
 
+# Too early in a period to call a pace: one big shop on day two is not a trend.
+PACE_GRACE = 0.10
+PACE_MARGIN = 0.10
+
+
+def pace_status(spent: int, allocated: int, elapsed: float, fixed: bool = False) -> str:
+    """over: past the cap. at_risk: 90% gone, or spending well ahead of the calendar.
+
+    A fixed bill is paid in one go, so it has no pace: it is either within its amount or over.
+    """
+    if allocated <= 0:
+        return "over" if spent > 0 else "on_track"
+    used = spent / allocated
+    if spent > allocated:
+        return "over"
+    if fixed:
+        return "on_track"
+    if used >= 0.9 or (elapsed >= PACE_GRACE and used > elapsed + PACE_MARGIN):
+        return "at_risk"
+    return "on_track"
+
+
+def category_scope(category_id: str | None, parents: dict[str, str | None]) -> set[str] | None:
+    """A budget on a parent category covers its children too."""
+    if category_id is None:
+        return None
+    return {category_id} | {cid for cid, parent in parents.items() if parent == category_id}
+
+
 def budget_statuses(db: Session, household_id: str, anchor: int, today: date) -> list[BudgetStatus]:
     budgets = list(db.scalars(select(Budget).where(Budget.household_id == household_id, Budget.is_active.is_(True))))
-    names = {c.id: c.name for c in db.scalars(select(Category).where(Category.household_id == household_id))}
+    categories = list(db.scalars(select(Category).where(Category.household_id == household_id)))
+    names = {c.id: c.name for c in categories}
+    kinds = {c.id: c.kind for c in categories}
+    parents = {c.id: c.parent_id for c in categories}
     start, end = period_bounds(anchor, today)
     rows = spend_rows(db, household_id, min(start, budget_start_floor(db, household_id, anchor)), end)
     elapsed = elapsed_fraction(start, end, today)
+    days_left = max((end - today).days + 1, 0)
 
     out: list[BudgetStatus] = []
     for budget in budgets:
-        carried = _carried_in(budget, rows, anchor, start)
+        scope = category_scope(budget.category_id, parents)
+        carried = _carried_in(budget, scope, rows, anchor, start)
         allocated = budget.amount + carried
-        spent = _budget_spent(budget, rows, start, end)
+        spent = _budget_spent(scope, rows, start, end)
         remaining = allocated - spent
         used = (spent / allocated * 100) if allocated else 0.0
-        if allocated and spent > allocated:
-            status = "over"
-        elif allocated and spent / allocated > max(elapsed + 0.15, 0.9):
-            status = "at_risk"
+        if budget.category_id is None:
+            kind = "overall"
+        elif parents.get(budget.category_id) is None:
+            kind = "group"
         else:
-            status = "on_track"
+            kind = "category"
 
         out.append(
             BudgetStatus(
                 id=budget.id,
-                name=budget.name or names.get(budget.category_id or "", "Envelope"),
+                name=budget.name or names.get(budget.category_id or "", "Overall"),
                 category_id=budget.category_id,
                 category_name=names.get(budget.category_id or ""),
+                parent_id=parents.get(budget.category_id or ""),
+                scope=kind,
                 period_start=start,
                 period_end=end,
                 allocated=allocated,
@@ -148,11 +192,63 @@ def budget_statuses(db: Session, household_id: str, anchor: int, today: date) ->
                 remaining=remaining,
                 used_pct=round(used, 1),
                 elapsed_pct=round(elapsed * 100, 1),
-                status=status,
+                status=pace_status(spent, allocated, elapsed, budget.fixed),
                 rollover=budget.rollover,
+                fixed=budget.fixed,
+                category_kind=kinds.get(budget.category_id or ""),
+                days_left=days_left,
+                daily_allowance=0 if budget.fixed else (max(remaining, 0) // days_left if days_left else 0),
+                projected=None if budget.fixed or elapsed < PACE_GRACE else round(spent / elapsed),
             )
         )
-    return out
+    order = {"overall": 0, "group": 1, "category": 2}
+    return sorted(out, key=lambda b: (order[b.scope], b.name.lower()))
+
+
+def reserved_by_budgets(budgets: list[BudgetStatus]) -> int:
+    """Money budgets still hold back, counted once.
+
+    An overall budget already contains every category budget, and a group budget
+    contains its children's, so only the outermost layer is summed.
+    """
+    overall = [b for b in budgets if b.scope == "overall"]
+    if overall:
+        return sum(max(b.remaining, 0) for b in overall)
+    budgets = [b for b in budgets if b.category_kind != "income"]
+    grouped = {b.category_id for b in budgets if b.scope == "group"}
+    return sum(max(b.remaining, 0) for b in budgets if b.scope == "group" or b.parent_id not in grouped)
+
+
+def budget_suggestions(db: Session, household_id: str, anchor: int, today: date, periods: int = 3) -> list[dict]:
+    """Average spend per complete period, per category, its parent group, and overall.
+
+    Divides by the periods that actually have spending, so a household with one
+    month of history is not told to budget a third of what it spends.
+    """
+    windows = []
+    start = period_bounds(anchor, today)[0]
+    for _ in range(periods):
+        start, end = previous_period(anchor, start)
+        windows.append((start, end))
+    rows = spend_rows(db, household_id, windows[-1][0], windows[0][1])
+    parents = {
+        c.id: c.parent_id for c in db.scalars(select(Category).where(Category.household_id == household_id))
+    }
+
+    active = sum(1 for s, e in windows if any(s <= r.occurred_at <= e for r in rows))
+    if not active:
+        return []
+
+    totals: dict[str | None, int] = {}
+    for row in rows:
+        keys: list[str | None] = [None]
+        if row.category_id:
+            keys.append(row.category_id)
+            if parents.get(row.category_id):
+                keys.append(parents[row.category_id])
+        for key in keys:
+            totals[key] = totals.get(key, 0) + row.amount
+    return [{"category_id": key, "average": total // active, "periods": active} for key, total in totals.items()]
 
 
 def budget_start_floor(db: Session, household_id: str, anchor: int) -> date:
@@ -330,7 +426,7 @@ def build_dashboard(db: Session, household_id: str, anchor: int, today: date, se
     )
     spent = sum(r.amount for r in rows)
     budgets = budget_statuses(db, household_id, anchor, today)
-    budgeted_remaining = sum(max(b.remaining, 0) for b in budgets)
+    budgeted_remaining = reserved_by_budgets(budgets)
     committed = committed_for_period(db, household_id, series, start, end)
 
     # If income has not landed yet, plan against last period's income rather than zero.

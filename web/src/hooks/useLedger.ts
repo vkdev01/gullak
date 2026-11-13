@@ -12,6 +12,7 @@ export type LedgerFilters = {
   direction: "" | "debit" | "credit";
   excludeTransfers: boolean;
   query: string;
+  tag: string;
   view: LedgerView;
 };
 export type DateRange = { start: string; end: string };
@@ -26,6 +27,7 @@ function filtersFrom(link: LedgerLink): LedgerFilters {
     direction: link.direction ?? "",
     excludeTransfers: link.transfers === "exclude",
     query: link.q ?? "",
+    tag: link.tag ?? "",
     view: link.view ?? "all",
   };
 }
@@ -75,6 +77,7 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
         ...(filters.direction ? { direction: filters.direction } : {}),
         ...(filters.excludeTransfers ? { exclude_transfers: true } : {}),
         ...(filters.query.trim() ? { q: filters.query.trim() } : {}),
+        ...(filters.tag ? { tag: filters.tag } : {}),
         ...(filters.view === "review" ? { needs_review: true } : {}),
         ...(filters.view === "uncategorised" ? { uncategorised: true } : {}),
       };
@@ -150,12 +153,22 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
   );
 
   const add = useCallback(
-    async (input: { accountId: string; amount: number; merchant: string; date: string; categoryId?: string | null }) => {
+    async (input: {
+      accountId: string;
+      amount: number;
+      merchant: string;
+      date: string;
+      note?: string;
+      tags?: string[];
+      categoryId?: string | null;
+    }) => {
       await api.createTransaction({
         account_id: input.accountId,
         amount: input.amount,
         occurred_at: input.date,
         merchant: input.merchant,
+        note: input.note ?? "",
+        tags: input.tags ?? [],
         category_id: input.categoryId ?? null,
         direction: "debit",
       });

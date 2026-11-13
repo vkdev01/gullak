@@ -50,7 +50,15 @@ class TransactionIn(BaseModel):
     occurred_at: date
     merchant: str
     category_id: str | None = None
-    note: str = ""
+    note: str = Field(default="", max_length=2000)
+    tags: list[str] = []
+
+
+class TransactionPatch(BaseModel):
+    category_id: str | None = None
+    note: str | None = Field(default=None, max_length=2000)
+    tags: list[str] | None = None
+    merchant: str | None = Field(default=None, min_length=1, max_length=160)
 
 
 class TransactionOut(BaseModel):
@@ -62,6 +70,7 @@ class TransactionOut(BaseModel):
     merchant: str
     category_id: str | None
     note: str
+    tags: list[str] = []
     source: str
     confidence: float = 1.0
     needs_review: bool = False
@@ -167,12 +176,14 @@ class BudgetIn(BaseModel):
     period: str = "monthly"
     amount: int = Field(gt=0)  # paise
     rollover: bool = False
+    fixed: bool = False
 
 
 class BudgetPatch(BaseModel):
     name: str | None = None
     amount: int | None = Field(default=None, gt=0)
     rollover: bool | None = None
+    fixed: bool | None = None
     is_active: bool | None = None
 
 
@@ -183,6 +194,7 @@ class BudgetOut(BaseModel):
     period: str
     amount: int
     rollover: bool
+    fixed: bool = False
     is_active: bool
 
 
@@ -191,6 +203,8 @@ class BudgetStatusOut(BaseModel):
     name: str
     category_id: str | None
     category_name: str | None
+    parent_id: str | None = None
+    scope: str = "category"  # overall | group | category
     period_start: date
     period_end: date
     allocated: int
@@ -201,6 +215,29 @@ class BudgetStatusOut(BaseModel):
     elapsed_pct: float
     status: str
     rollover: bool
+    fixed: bool = False
+    category_kind: str | None = None
+    days_left: int = 0
+    daily_allowance: int = 0
+    projected: int | None = None
+
+
+class BudgetSuggestionOut(BaseModel):
+    category_id: str | None
+    average: int
+    periods: int
+
+
+class HouseholdOut(BaseModel):
+    id: str
+    name: str
+    currency: str
+    cycle_start_day: int
+
+
+class HouseholdPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    cycle_start_day: int | None = Field(default=None, ge=1, le=28)
 
 
 class GoalIn(BaseModel):
@@ -314,6 +351,7 @@ class TransactionDetailOut(BaseModel):
     occurred_at: date
     merchant: str
     note: str
+    tags: list[str] = []
     category_id: str | None
     category_name: str | None
     category_parent: str | None

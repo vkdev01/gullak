@@ -8,11 +8,13 @@ from .models import Account, Category, Merchant, Transaction
 DEFAULT_CATS = {
     "Food & drink": ["Groceries", "Dining", "Delivery", "Coffee"],
     "Housing": ["Rent", "Electricity", "Internet", "Maintenance"],
-    "Transport": ["Cab", "Fuel", "Train", "Metro"],
+    "Transport": ["Cab", "Fuel", "Train", "Metro", "Vehicle service", "Parking & tolls"],
     "Shopping": ["Clothing", "Electronics", "Home"],
     "Health": ["Pharmacy", "Doctor", "Fitness"],
     "Entertainment": ["Subscriptions", "Movies", "Events"],
+    "Loans & EMIs": ["Vehicle loan", "Home loan", "Personal loan"],
     "Money": ["Fees", "Interest", "Insurance"],
+    "Other": ["Miscellaneous", "Gifts", "Education", "Personal care"],
     "Income": ["Salary", "Freelance", "Refund"],
 }
 COLOURS = ["green", "clay", "butter"]

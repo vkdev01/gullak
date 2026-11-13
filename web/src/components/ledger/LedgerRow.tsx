@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { money } from "@/lib/format";
+import { ledgerHref } from "@/lib/links";
 import type { Category, Txn } from "@/lib/api";
 import s from "./ledger.module.scss";
 
@@ -56,6 +58,20 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
           {transaction.needs_review && <i className={s.flag} title="The importer was unsure about this one" />}
         </b>
         {transaction.note && <span title={transaction.note}>{transaction.note}</span>}
+        {(transaction.tags ?? []).length > 0 && (
+          <em className={s.rowTags}>
+            {transaction.tags!.map((tag) => (
+              <Link
+                key={tag}
+                href={ledgerHref({ tag, when: "all" })}
+                onClick={(e) => e.stopPropagation()}
+                title={`Every row tagged #${tag}`}
+              >
+                #{tag}
+              </Link>
+            ))}
+          </em>
+        )}
       </div>
 
       <div>

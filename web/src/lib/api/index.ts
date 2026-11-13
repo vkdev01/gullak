@@ -4,11 +4,13 @@ import type {
   Account,
   Budget,
   BudgetStatus,
+  BudgetSuggestion,
   Category,
   Count,
   Dashboard,
   Goal,
   GroupRow,
+  Household,
   Series,
   ImportBatch,
   ImportDecision,
@@ -17,6 +19,7 @@ import type {
   Rule,
   Summary,
   TransactionDetail,
+  TransactionPatch,
   Txn,
 } from "./types";
 
@@ -24,11 +27,13 @@ export type {
   Account,
   Budget,
   BudgetStatus,
+  BudgetSuggestion,
   Category,
   Count,
   Dashboard,
   Goal,
   GroupRow,
+  Household,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -39,6 +44,7 @@ export type {
   Series,
   Summary,
   TransactionDetail,
+  TransactionPatch,
   Txn,
 } from "./types";
 export { getToken, setToken };
@@ -70,6 +76,14 @@ export const api = {
 
   categories: (): Promise<Category[]> => (isDemoMode() ? Promise.resolve(demo.categories()) : request("/categories")),
 
+  createCategory: (body: { name: string; parent_id?: string | null }): Promise<Category> =>
+    isDemoMode() ? Promise.resolve(demo.createCategory(body)) : request("/categories", { method: "POST", body: JSON.stringify(body) }),
+
+  household: (): Promise<Household> => (isDemoMode() ? Promise.resolve(demo.household()) : request("/household")),
+
+  updateHousehold: (body: Partial<Pick<Household, "name" | "cycle_start_day">>): Promise<Household> =>
+    isDemoMode() ? Promise.resolve(demo.updateHousehold(body)) : request("/household", { method: "PATCH", body: JSON.stringify(body) }),
+
   transactions: (params: Record<string, string | number | boolean> = {}): Promise<Txn[]> =>
     isDemoMode()
       ? Promise.resolve(demo.transactions(params))
@@ -98,6 +112,11 @@ export const api = {
     isDemoMode()
       ? Promise.resolve(demo.recategorise(id, category_id))
       : request(`/transactions/${id}?category_id=${category_id}`, { method: "PATCH" }),
+
+  updateTransaction: (id: string, body: TransactionPatch): Promise<Txn> =>
+    isDemoMode()
+      ? Promise.resolve(demo.updateTransaction(id, body))
+      : request(`/transactions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   summary: (): Promise<Summary> => (isDemoMode() ? Promise.resolve(demo.summary()) : request("/transactions/summary")),
 
@@ -146,11 +165,22 @@ export const api = {
 
   budgets: (): Promise<Budget[]> => (isDemoMode() ? Promise.resolve(demo.budgets()) : request("/budgets")),
 
-  createBudget: (body: { category_id?: string | null; amount: number; rollover?: boolean; name?: string }): Promise<Budget> =>
+  createBudget: (body: { category_id?: string | null; amount: number; rollover?: boolean; fixed?: boolean; name?: string }): Promise<Budget> =>
     isDemoMode() ? Promise.resolve(demo.createBudget(body)) : request("/budgets", { method: "POST", body: JSON.stringify(body) }),
 
   budgetStatus: (): Promise<BudgetStatus[]> =>
     isDemoMode() ? Promise.resolve(demo.budgetStatus()) : request("/budgets/status"),
+
+  updateBudget: (id: string, body: { amount?: number; rollover?: boolean; fixed?: boolean; name?: string }): Promise<Budget> =>
+    isDemoMode()
+      ? Promise.resolve(demo.updateBudget(id, body))
+      : request(`/budgets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  deleteBudget: (id: string): Promise<void> =>
+    isDemoMode() ? Promise.resolve(demo.deleteBudget(id)) : request(`/budgets/${id}`, { method: "DELETE" }),
+
+  budgetSuggestions: (): Promise<BudgetSuggestion[]> =>
+    isDemoMode() ? Promise.resolve(demo.budgetSuggestions()) : request("/budgets/suggestions"),
 
   goals: (): Promise<Goal[]> => (isDemoMode() ? Promise.resolve(demo.goals()) : request("/goals")),
 

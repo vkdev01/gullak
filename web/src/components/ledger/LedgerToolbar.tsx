@@ -90,6 +90,17 @@ export default function LedgerToolbar({
         </button>
       )}
 
+      {filters.tag && (
+        <button
+          type="button"
+          className={s.filterChip}
+          onClick={() => onFiltersChange({ ...filters, tag: "" })}
+          aria-label={`Stop filtering by #${filters.tag}`}
+        >
+          #{filters.tag} ×
+        </button>
+      )}
+
       {filters.excludeTransfers && (
         <button
           type="button"

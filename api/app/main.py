@@ -3,19 +3,40 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from .db import Base, engine, get_db
 from .deps import current_household_id
 from .models import User
 from .deps import current_user
-from .routers import accounts, auth, budgets, categories, dashboard, goals, imports, rules, transactions
+from .routers import accounts, auth, budgets, categories, dashboard, goals, household, imports, rules, transactions
 from .seed import seed_demo
+
+
+def _upgrade_dev_sqlite() -> None:
+    """create_all never alters an existing table, so add columns newer than the dev database."""
+    if engine.dialect.name != "sqlite":
+        return
+    inspector = inspect(engine)
+    missing = [
+        (table, column, ddl)
+        for table, column, ddl in [
+            ("transactions", "tags", "TEXT NOT NULL DEFAULT ''"),
+            ("budgets", "fixed", "BOOLEAN NOT NULL DEFAULT 0"),
+        ]
+        if inspector.has_table(table) and column not in {c["name"] for c in inspector.get_columns(table)}
+    ]
+    with engine.begin() as conn:
+        for table, column, ddl in missing:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # dev convenience; production applies migrations/001_init.sql instead
+    # dev convenience; production applies migrations/*.sql instead
     Base.metadata.create_all(bind=engine)
+    _upgrade_dev_sqlite()
     yield
 
 
@@ -53,6 +74,7 @@ def demo_seed(hid: str = Depends(current_household_id), db: Session = Depends(ge
 
 
 app.include_router(auth.router)
+app.include_router(household.router)
 app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)

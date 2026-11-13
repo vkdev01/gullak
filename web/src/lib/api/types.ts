@@ -25,6 +25,7 @@ export type Txn = {
   merchant: string;
   category_id: string | null;
   note: string;
+  tags?: string[];
   source: string;
   confidence?: number;
   needs_review?: boolean;
@@ -95,6 +96,7 @@ export type Budget = {
   period: string;
   amount: number;
   rollover: boolean;
+  fixed?: boolean;
   is_active: boolean;
 };
 
@@ -103,6 +105,8 @@ export type BudgetStatus = {
   name: string;
   category_id: string | null;
   category_name: string | null;
+  parent_id: string | null;
+  scope: "overall" | "group" | "category";
   period_start: string;
   period_end: string;
   allocated: number;
@@ -113,7 +117,18 @@ export type BudgetStatus = {
   elapsed_pct: number;
   status: "on_track" | "at_risk" | "over";
   rollover: boolean;
+  fixed: boolean;
+  category_kind: string | null;
+  days_left: number;
+  daily_allowance: number;
+  projected: number | null;
 };
+
+export type BudgetSuggestion = { category_id: string | null; average: number; periods: number };
+
+export type Household = { id: string; name: string; currency: string; cycle_start_day: number };
+
+export type TransactionPatch = { category_id?: string | null; note?: string; tags?: string[]; merchant?: string };
 
 export type Goal = {
   id: string;
@@ -178,6 +193,7 @@ export type TransactionDetail = {
   occurred_at: string;
   merchant: string;
   note: string;
+  tags: string[];
   category_id: string | null;
   category_name: string | null;
   category_parent: string | null;

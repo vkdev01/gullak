@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { parseQuickAdd } from "@/lib/parse";
 
+export type QuickAddInput = { amount: number; merchant: string; date: string; note: string; tags: string[] };
+
 /**
  * Draft state for the one-line capture bar. The parse is recomputed as you type
  * so the UI can show what will be saved before you press enter.
  */
-export function useQuickAdd(onSubmit: (parsed: { amount: number; merchant: string; date: string }) => Promise<void>) {
+export function useQuickAdd(onSubmit: (parsed: QuickAddInput) => Promise<void>) {
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const parsed = useMemo(() => parseQuickAdd(draft), [draft]);
@@ -16,7 +18,13 @@ export function useQuickAdd(onSubmit: (parsed: { amount: number; merchant: strin
     if (!parsed.amount) return;
     setSubmitting(true);
     try {
-      await onSubmit({ amount: parsed.amount, merchant: parsed.merchant, date: parsed.date });
+      await onSubmit({
+        amount: parsed.amount,
+        merchant: parsed.merchant,
+        date: parsed.date,
+        note: parsed.note,
+        tags: parsed.tags,
+      });
       setDraft("");
     } finally {
       setSubmitting(false);
