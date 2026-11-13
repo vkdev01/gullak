@@ -49,6 +49,7 @@ def list_transactions(
     q: str | None = None,
     start: date | None = None,
     end: date | None = None,
+    exclude_transfers: bool = False,
     limit: int = Query(100, le=500),
     offset: int = 0,
 ):
@@ -57,6 +58,8 @@ def list_transactions(
         .options(joinedload(Transaction.account), joinedload(Transaction.category))
         .where(Transaction.household_id == hid)  # tenant scope, always
     )
+    if exclude_transfers:
+        stmt = stmt.where(Transaction.transfer_id.is_(None))
     if account_id:
         stmt = stmt.where(Transaction.account_id == account_id)
     if category_id:
@@ -266,9 +269,12 @@ def count_transactions(
     q: str | None = None,
     start: date | None = None,
     end: date | None = None,
+    exclude_transfers: bool = False,
 ):
     """How many rows match the same filters the list is using, and what they add up to."""
     stmt = select(Transaction).where(Transaction.household_id == hid)
+    if exclude_transfers:
+        stmt = stmt.where(Transaction.transfer_id.is_(None))
     if account_id:
         stmt = stmt.where(Transaction.account_id == account_id)
     if category_id:
