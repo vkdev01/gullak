@@ -303,3 +303,25 @@ class CountOut(BaseModel):
     out: int
     income: int
     net: int
+
+
+class TransactionDetailOut(BaseModel):
+    id: str
+    account_id: str
+    account_name: str | None
+    amount: int
+    direction: str
+    occurred_at: date
+    merchant: str
+    note: str
+    category_id: str | None
+    category_name: str | None
+    category_parent: str | None
+    source: str
+    confidence: float
+    needs_review: bool
+    transfer_id: str | None
+    dedupe_hash: str | None
+    created_at: str | None
+    import_filename: str | None
+    import_batch_id: str | None

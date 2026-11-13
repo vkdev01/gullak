@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db
 from ..deps import current_household_id
-from ..models import Account, Category, Transaction
+from ..models import Account, Category, ImportBatch, Transaction
 from ..schemas import (
     BulkCategoriseIn,
     CountOut,
@@ -16,6 +16,7 @@ from ..schemas import (
     ReviewRowOut,
     SummaryOut,
     TransactionIn,
+    TransactionDetailOut,
     TransactionOut,
     TransferIn,
     TransferOut,
@@ -289,3 +290,38 @@ def count_transactions(
     out = sum(r.amount for r in rows if r.direction == "debit")
     income = sum(r.amount for r in rows if r.direction == "credit")
     return CountOut(count=len(rows), out=out, income=income, net=income - out)
+
+
+@router.get("/{tx_id}", response_model=TransactionDetailOut)
+def get_transaction(tx_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """One row in full, including where it came from — the drawer behind the ledger."""
+    tx = db.get(Transaction, tx_id)
+    if not tx or tx.household_id != hid:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    account = db.get(Account, tx.account_id)
+    category = db.get(Category, tx.category_id) if tx.category_id else None
+    parent = db.get(Category, category.parent_id) if category and category.parent_id else None
+    batch = db.get(ImportBatch, tx.import_batch_id) if tx.import_batch_id else None
+
+    return TransactionDetailOut(
+        id=tx.id,
+        account_id=tx.account_id,
+        account_name=account.name if account else None,
+        amount=tx.amount,
+        direction=tx.direction,
+        occurred_at=tx.occurred_at,
+        merchant=tx.merchant,
+        note=tx.note or "",
+        category_id=tx.category_id,
+        category_name=category.name if category else None,
+        category_parent=parent.name if parent else None,
+        source=tx.source,
+        confidence=tx.confidence or 0.0,
+        needs_review=bool(tx.needs_review),
+        transfer_id=tx.transfer_id,
+        dedupe_hash=tx.dedupe_hash,
+        created_at=tx.created_at.isoformat() if tx.created_at else None,
+        import_filename=batch.filename if batch else None,
+        import_batch_id=tx.import_batch_id,
+    )
