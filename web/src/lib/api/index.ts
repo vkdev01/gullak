@@ -149,3 +149,8 @@ export const api = {
       : request(`/transactions/group?by=${by}${start ? `&start=${start}` : ""}${end ? `&end=${end}` : ""}`),
 };
 
+
+/** Wipe the browser store and start again. Only meaningful in demo mode. */
+export async function resetDemoData(): Promise<void> {
+  demo.reset();
+}

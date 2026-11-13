@@ -9,7 +9,7 @@ import { money } from "@/lib/format";
 import s from "./page.module.scss";
 
 export default function BudgetsPage() {
-  const { statuses, create, loading } = useBudgets();
+  const { statuses, create, loading, error } = useBudgets();
   const { leaves } = useCategories();
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
@@ -40,6 +40,8 @@ export default function BudgetsPage() {
           When the fill runs past the marker, you are spending faster than the month is passing.
         </p>
       </header>
+
+      {error && <p className={s.error}>Could not load budgets: {error}</p>}
 
       <section className={s.list}>
         {loading && <p className="small muted">Loading…</p>}

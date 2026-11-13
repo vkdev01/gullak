@@ -90,6 +90,21 @@ row-level security so the database refuses cross-tenant reads even if applicatio
 Duplicate imports are guarded the same way — the preview flags them, the commit skips them, and a
 unique partial index on `(account_id, dedupe_hash)` is the last line of defence.
 
+## When something breaks
+
+Most failures are one of four things. The app tells you which by where it breaks:
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Every page says "Could not reach the API" | `NEXT_PUBLIC_API_URL` is set but nothing is listening | start `uvicorn app.main:app` in `api/`, or unset the variable to run on the demo store |
+| The browser console shows a CORS error | the web app is on a different origin than `WEB_ORIGIN` | set `WEB_ORIGIN=http://localhost:3001` (comma-separated for several) |
+| The dashboard or budgets page fails only in your browser | your demo store was written by an older build | **Reset demo data** on the dashboard, or clear `gullak.static.*` from localStorage |
+| A 401 on every call | the token expired or was cleared | sign in again at `/login` |
+
+The static demo keeps its data in `localStorage`, which means your browser carries a schema
+written by whichever version you first loaded. `web/scripts/probe-demo-store.mjs` exercises the
+store against a fresh, an older and a corrupt payload, and CI runs it before every build.
+
 ## Working on this repo
 
 Branch per feature, merge to `main` when the work is done and CI is green:

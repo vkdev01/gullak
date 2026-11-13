@@ -21,9 +21,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Gullak API", version="0.1.0 (MVP 0)", lifespan=lifespan)
 
+# The browser origin is configuration, not a constant: Next picks 3001 when 3000
+# is busy, and 127.0.0.1 is a different origin from localhost. WEB_ORIGIN takes a
+# comma-separated list for anything else (a deployed web app, a tunnel).
+_default_origins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001"
+_origins = [o.strip() for o in os.getenv("WEB_ORIGIN", _default_origins).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -67,3 +67,10 @@
 @include m.mq(md) {
   .span8, .span4, .span12 { grid-column: 1 / -1; }
 }
+
+.reset {
+  font: inherit;
+  color: t.$green;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

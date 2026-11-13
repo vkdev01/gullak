@@ -7,7 +7,8 @@ import s from "./dashboard.module.scss";
 export default function HeroCard({ data }: { data: Dashboard }) {
   const allocated = data.budgets.reduce((sum, b) => sum + b.allocated, 0);
   const spentInBudgets = data.budgets.reduce((sum, b) => sum + b.spent, 0);
-  const usedPct = allocated ? Math.round((spentInBudgets / allocated) * 100) : Math.round(data.elapsed_pct);
+  const hasBudgets = allocated > 0;
+  const usedPct = hasBudgets ? Math.round((spentInBudgets / allocated) * 100) : Math.round(data.elapsed_pct);
 
   const radius = 44;
   const circumference = 2 * Math.PI * radius;
@@ -49,7 +50,7 @@ export default function HeroCard({ data }: { data: Dashboard }) {
         </svg>
         <div className={s.ringInner}>
           <b>{usedPct}%</b>
-          <span>budgets used</span>
+          <span>{hasBudgets ? "budgets used" : "of period"}</span>
         </div>
       </div>
     </div>

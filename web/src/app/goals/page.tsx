@@ -8,7 +8,7 @@ import { money } from "@/lib/format";
 import s from "./page.module.scss";
 
 export default function GoalsPage() {
-  const { goals, create, contribute, loading } = useGoals();
+  const { goals, create, contribute, loading, error } = useGoals();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [monthly, setMonthly] = useState("");
@@ -42,6 +42,8 @@ export default function GoalsPage() {
           miss a month and the finish line moves.
         </p>
       </header>
+
+      {error && <p className={s.error}>Could not load goals: {error}</p>}
 
       <section className={s.list}>
         {loading && <p className="small muted">Loading…</p>}
