@@ -9,6 +9,18 @@ const INR = new Intl.NumberFormat("en-IN", {
 // Intl emits a hyphen for negatives; rows prefix a true minus, so match it.
 export const money = (paise: number) => INR.format(paise / 100).replace(/^-/, "−");
 
+/** "12,700" or "₹12700.50" → paise; null when it is not a positive amount. */
+export function parseRupees(input: string): number | null {
+  const value = Number(input.replace(/[₹,\s]/g, ""));
+  return Number.isFinite(value) && value > 0 ? Math.round(value * 100) : null;
+}
+
+/** 25 → "25th". Used for the salary day. */
+export function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
+
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function addDays(iso: string, days: number): string {

@@ -1,33 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import BudgetCard from "@/components/budgets/BudgetCard";
+import NewBudgetForm from "@/components/budgets/NewBudgetForm";
 import Button from "@/components/ui/Button";
-import Field from "@/components/ui/Field";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCategories } from "@/hooks/useCategories";
-import { money } from "@/lib/format";
+import type { BudgetStatus, Category } from "@/lib/api";
+import { reservedByBudgets } from "@/lib/budgets";
+import { money, ordinal, parseRupees, shortDate } from "@/lib/format";
+import b from "@/components/budgets/budgets.module.scss";
 import s from "./page.module.scss";
 
-export default function BudgetsPage() {
-  const { statuses, create, loading, error } = useBudgets();
-  const { leaves } = useCategories();
-  const [categoryId, setCategoryId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [rollover, setRollover] = useState(false);
-  const [busy, setBusy] = useState(false);
+function subtitleFor(budget: BudgetStatus, categories: Category[]): string | undefined {
+  if (budget.scope === "group") {
+    const kids = categories.filter((c) => c.parent_id === budget.category_id).map((c) => c.name);
+    return kids.length ? `All of it: ${kids.join(", ")}` : undefined;
+  }
+  return categories.find((c) => c.id === budget.parent_id)?.name;
+}
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const paise = Math.round(parseFloat(amount || "0") * 100);
-    if (!paise) return;
-    setBusy(true);
+export default function BudgetsPage() {
+  const budgets = useBudgets();
+  const { categories, reload: reloadCategories } = useCategories();
+  const [overallInput, setOverallInput] = useState("");
+  const [overallError, setOverallError] = useState<string | null>(null);
+
+  const { overall, categoryBudgets, household } = budgets;
+  const period = budgets.statuses[0] ?? null;
+  const overallAverage = budgets.averageFor(null);
+  const allocated = reservedByBudgets(categoryBudgets.map((x) => ({ ...x, remaining: x.allocated })));
+
+  async function setOverall() {
+    const paise = parseRupees(overallInput);
+    if (!paise) return setOverallError("Enter an amount above zero");
     try {
-      await create({ category_id: categoryId || null, amount: paise, rollover });
-      setAmount("");
-      setCategoryId("");
-      setRollover(false);
-    } finally {
-      setBusy(false);
+      await budgets.create({ category_id: null, amount: paise });
+      setOverallInput("");
+      setOverallError(null);
+    } catch (e) {
+      setOverallError((e as Error).message);
     }
   }
 
@@ -36,69 +48,109 @@ export default function BudgetsPage() {
       <header className={s.header}>
         <h1>Budgets</h1>
         <p>
-          A budget is a cap for a category in the current period. The fill is money spent; the marker is time elapsed.
-          When the fill runs past the marker, you are spending faster than the month is passing.
+          One overall number for everything you spend in a period, split into category budgets where you want a closer
+          watch. The fill is money spent; the marker is today. Fill past the marker means you are spending faster than
+          the period is passing.
         </p>
       </header>
 
-      {error && <p className={s.error}>Could not load budgets: {error}</p>}
-
-      <section className={s.list}>
-        {loading && <p className="small muted">Loading…</p>}
-        {!loading && statuses.length === 0 && (
-          <p className={s.empty}>No budgets yet. Add one below — groceries and dining are the usual first two.</p>
-        )}
-
-        {statuses.map((budget) => (
-          <div key={budget.id} className={`${s.row} ${s[budget.status] ?? ""}`}>
-            <div className={s.rowMain}>
-              <div className={s.rowTop}>
-                <b>{budget.name}</b>
-                <span>
-                  {money(budget.spent)} of {money(budget.allocated)}
-                  {budget.carried ? ` · incl. ${money(budget.carried)} carried` : ""}
-                </span>
-              </div>
-              <div className={s.pace}>
-                <div className={s.paceFill} style={{ width: `${Math.min(budget.used_pct, 100)}%` }} />
-                <div className={s.paceMark} style={{ left: `${Math.min(budget.elapsed_pct, 100)}%` }} />
-              </div>
-              <div className={s.rowFoot}>
-                <span>
-                  {budget.used_pct}% used · {budget.elapsed_pct}% elapsed
-                </span>
-                <span>{budget.remaining >= 0 ? `${money(budget.remaining)} left` : `${money(-budget.remaining)} over`}</span>
-              </div>
-            </div>
-            <div className={s.badge}>{budget.status.replace("_", " ")}</div>
-          </div>
-        ))}
-      </section>
-
-      <form className={s.form} onSubmit={submit}>
-        <h2>New budget</h2>
-        <div className={s.formRow}>
-          <div className={s.selectWrap}>
-            <label htmlFor="budget-cat">Category</label>
-            <select id="budget-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Whole household (envelope)</option>
-              {leaves.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+      <section className={b.periodBar}>
+        <span>
+          {period
+            ? `${shortDate(period.period_start)} – ${shortDate(period.period_end)} · ${period.days_left} days left`
+            : "This period"}
+        </span>
+        {household && (
+          <label>
+            Periods start on the
+            <select
+              value={household.cycle_start_day}
+              onChange={(e) => void budgets.setCycleDay(Number(e.target.value))}
+              aria-label="Day each budget period starts"
+            >
+              {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                <option key={day} value={day}>
+                  {ordinal(day)}
                 </option>
               ))}
             </select>
-          </div>
-          <Field label="Amount (₹)" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
-          <label className={s.check}>
-            <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
-            Carry unspent forward
+            <em>set it to your salary day</em>
           </label>
-          <Button type="submit" disabled={busy || !amount}>
-            {busy ? "Saving…" : "Add budget"}
-          </Button>
-        </div>
-      </form>
+        )}
+      </section>
+
+      {budgets.error && <p className={s.error}>Could not load budgets: {budgets.error}</p>}
+
+      {budgets.loading ? (
+        <div className={b.skeleton} aria-busy="true" />
+      ) : overall ? (
+        <BudgetCard
+          hero
+          budget={overall}
+          subtitle="Everything you spend, transfers excluded"
+          average={overallAverage}
+          onUpdate={(body) => budgets.update(overall.id, body)}
+          onRemove={() => budgets.remove(overall.id)}
+        />
+      ) : (
+        <section className={b.emptyOverall}>
+          <div>
+            <h2>Set an overall monthly budget</h2>
+            <p>
+              One number for all spending: rent, fuel, food, everything. Category budgets below then split it up, and the
+              dashboard uses it to work out what is free to spend.
+            </p>
+            {overallAverage && (
+              <p className={b.hint}>
+                Your last {overallAverage.periods === 1 ? "period" : `${overallAverage.periods} periods`} averaged{" "}
+                <b className="num">{money(overallAverage.average)}</b>.{" "}
+                <button type="button" className={b.link} onClick={() => setOverallInput(String(Math.ceil(overallAverage.average / 100)))}>
+                  Use it
+                </button>
+              </p>
+            )}
+          </div>
+          <div className={b.formRow}>
+            <label className={b.inline}>
+              <span>Per period (₹)</span>
+              <input value={overallInput} onChange={(e) => setOverallInput(e.target.value)} inputMode="decimal" placeholder="60,000" />
+            </label>
+            <Button onClick={() => void setOverall()} disabled={!overallInput}>
+              Set budget
+            </Button>
+          </div>
+          {overallError && <p className={b.error}>{overallError}</p>}
+        </section>
+      )}
+
+      {overall && categoryBudgets.length > 0 && (
+        <p className={allocated > overall.allocated ? b.allocWarn : b.alloc}>
+          {allocated > overall.allocated
+            ? `Category budgets add up to ${money(allocated)}, ${money(allocated - overall.allocated)} more than the overall budget.`
+            : `Category budgets hold ${money(allocated)} of ${money(overall.allocated)}; the other ${money(overall.allocated - allocated)} covers everything without its own budget.`}
+        </p>
+      )}
+
+      <section className={b.grid}>
+        {categoryBudgets.map((budget) => (
+          <BudgetCard
+            key={budget.id}
+            budget={budget}
+            subtitle={subtitleFor(budget, categories)}
+            average={budgets.averageFor(budget.category_id)}
+            onUpdate={(body) => budgets.update(budget.id, body)}
+            onRemove={() => budgets.remove(budget.id)}
+          />
+        ))}
+      </section>
+
+      <NewBudgetForm
+        categories={categories}
+        budgets={categoryBudgets}
+        averageFor={budgets.averageFor}
+        onCreate={(input) => budgets.create(input)}
+        onCategoryCreated={() => reloadCategories()}
+      />
     </main>
   );
 }

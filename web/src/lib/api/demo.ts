@@ -10,14 +10,18 @@ import { buildCandidates, dedupeHash, type Mapping } from "../csv";
 import { matchMerchant } from "../merchants";
 import { detectSeries } from "../recurring";
 import { daysBetween, elapsedFraction, periodBounds, periodLabel, previousPeriod, toISO } from "../plan";
+import { budgetScope, categoryScope, paceStatus, projectedSpend, reservedByBudgets } from "../budgets";
+import { normaliseTags } from "../tags";
 import type {
   Account,
   Budget,
   BudgetStatus,
+  BudgetSuggestion,
   Category,
   Dashboard,
   Goal,
   GroupRow,
+  Household,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -25,6 +29,7 @@ import type {
   ReviewRow,
   Rule,
   Summary,
+  TransactionPatch,
   Txn,
 } from "./types";
 
@@ -54,11 +59,13 @@ const addDays = (iso: string, n: number) => {
 const DEFAULT_CATS: Record<string, string[]> = {
   "Food & drink": ["Groceries", "Dining", "Delivery", "Coffee"],
   Housing: ["Rent", "Electricity", "Internet", "Maintenance"],
-  Transport: ["Cab", "Fuel", "Train", "Metro"],
+  Transport: ["Cab", "Fuel", "Train", "Metro", "Vehicle service", "Parking & tolls"],
   Shopping: ["Clothing", "Electronics", "Home"],
   Health: ["Pharmacy", "Doctor", "Fitness"],
   Entertainment: ["Subscriptions", "Movies", "Events"],
+  "Loans & EMIs": ["Vehicle loan", "Home loan", "Personal loan"],
   Money: ["Fees", "Interest", "Insurance"],
+  Other: ["Miscellaneous", "Gifts", "Education", "Personal care"],
   Income: ["Salary", "Freelance", "Refund"],
 };
 
@@ -207,6 +214,42 @@ export const demo = {
   },
   categories: () => db().categories,
 
+  createCategory: (body: { name: string; parent_id?: string | null }) => {
+    const d = db();
+    const name = body.name.trim();
+    if (!name) throw new Error("A category needs a name");
+    const parent = body.parent_id ? d.categories.find((c) => c.id === body.parent_id) : null;
+    if (body.parent_id && !parent) throw new Error("Parent category not found in this household");
+    if (parent?.parent_id) throw new Error("Categories are two levels deep; pick a top-level parent");
+    const clash = d.categories.some(
+      (c) => (c.parent_id ?? null) === (body.parent_id ?? null) && c.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (clash) throw new Error(`“${name}” already exists there`);
+    const category: Category = {
+      id: uid(),
+      parent_id: parent?.id ?? null,
+      name,
+      kind: parent?.kind ?? "expense",
+      colour: parent?.colour ?? "green",
+    };
+    d.categories.push(category);
+    persist();
+    return category;
+  },
+
+  household: (): Household => ({ ...db().household }),
+
+  updateHousehold: (body: Partial<Pick<Household, "name" | "cycle_start_day">>): Household => {
+    const d = db();
+    if (body.cycle_start_day !== undefined) {
+      if (body.cycle_start_day < 1 || body.cycle_start_day > 28) throw new Error("Pick a day between 1 and 28");
+      d.household.cycle_start_day = Math.floor(body.cycle_start_day);
+    }
+    if (body.name) d.household.name = body.name;
+    persist();
+    return { ...d.household };
+  },
+
   transactions: (params: Record<string, string | number | boolean> = {}) => {
     const d = db();
     let rows = [...d.transactions];
@@ -218,10 +261,17 @@ export const demo = {
     if (params.start) rows = rows.filter((t) => t.occurred_at >= String(params.start));
     if (params.end) rows = rows.filter((t) => t.occurred_at <= String(params.end));
     if (params.uncategorised) rows = rows.filter((t) => !t.category_id);
+    if (params.tag) {
+      const [tag] = normaliseTags([String(params.tag)]);
+      rows = rows.filter((t) => (t.tags ?? []).includes(tag));
+    }
     if (params.q) {
       const q = String(params.q).toLowerCase();
       rows = rows.filter(
-        (t) => t.merchant.toLowerCase().includes(q) || (t.note ?? "").toLowerCase().includes(q),
+        (t) =>
+          t.merchant.toLowerCase().includes(q) ||
+          (t.note ?? "").toLowerCase().includes(q) ||
+          (t.tags ?? []).some((tag) => tag.includes(q)),
       );
     }
     rows.sort((a, b) => {
@@ -266,6 +316,7 @@ export const demo = {
 
     return {
       ...tx,
+      tags: tx.tags ?? [],
       account_name: d.accounts.find((a) => a.id === tx.account_id)?.name ?? null,
       category_name: category?.name ?? null,
       category_parent: parent?.name ?? null,
@@ -288,7 +339,8 @@ export const demo = {
       occurred_at: String(body.occurred_at ?? todayISO()),
       merchant: String(body.merchant ?? "Untitled"),
       category_id: (body.category_id as string) ?? null,
-      note: String(body.note ?? ""),
+      note: String(body.note ?? "").trim(),
+      tags: normaliseTags((body.tags as string[] | undefined) ?? []),
       source: "manual",
     };
     db().transactions.push(t);
@@ -297,10 +349,23 @@ export const demo = {
     return withNames(t);
   },
 
-  recategorise: (id: string, category_id: string) => {
-    const t = db().transactions.find((x) => x.id === id);
+  recategorise: (id: string, category_id: string) => demo.updateTransaction(id, { category_id }),
+
+  updateTransaction: (id: string, patch: TransactionPatch) => {
+    const d = db();
+    const t = d.transactions.find((x) => x.id === id);
     if (!t) throw new Error("Transaction not found");
-    t.category_id = category_id;
+    if (patch.category_id !== undefined) {
+      if (patch.category_id && !d.categories.some((c) => c.id === patch.category_id)) {
+        throw new Error("Category not found in this household");
+      }
+      t.category_id = patch.category_id || null;
+      t.needs_review = false;
+      t.confidence = 1;
+    }
+    if (patch.note !== undefined) t.note = patch.note.trim();
+    if (patch.tags !== undefined) t.tags = normaliseTags(patch.tags);
+    if (patch.merchant?.trim()) t.merchant = patch.merchant.trim();
     persist();
     return withNames(t);
   },
@@ -532,15 +597,23 @@ export const demo = {
 
   budgets: () => db().budgets,
 
-  createBudget: (input: { category_id?: string | null; amount: number; rollover?: boolean; name?: string }) => {
+  createBudget: (input: { category_id?: string | null; amount: number; rollover?: boolean; fixed?: boolean; name?: string }) => {
     const d = db();
+    const categoryId = input.category_id ?? null;
+    const category = categoryId ? d.categories.find((c) => c.id === categoryId) : null;
+    if (categoryId && !category) throw new Error("Category not found in this household");
+    if (category && category.kind !== "expense") throw new Error("Budgets cap spending; income categories cannot have one");
+    if (d.budgets.some((b) => b.is_active && (b.category_id ?? null) === categoryId)) {
+      throw new Error(`There is already a budget for this ${categoryId ? "category" : "household"}; change its amount instead`);
+    }
     const budget: Budget = {
       id: uid(),
-      name: input.name ?? d.categories.find((c) => c.id === input.category_id)?.name ?? "Envelope",
-      category_id: input.category_id ?? null,
+      name: input.name ?? category?.name ?? "Overall",
+      category_id: categoryId,
       period: "monthly",
       amount: input.amount,
       rollover: input.rollover ?? false,
+      fixed: input.fixed ?? false,
       is_active: true,
     };
     d.budgets.push(budget);
@@ -548,36 +621,95 @@ export const demo = {
     return budget;
   },
 
+  updateBudget: (id: string, body: { amount?: number; rollover?: boolean; fixed?: boolean; name?: string }) => {
+    const budget = db().budgets.find((b) => b.id === id);
+    if (!budget) throw new Error("Budget not found");
+    if (body.amount !== undefined) {
+      if (!(body.amount > 0)) throw new Error("A budget needs an amount above zero");
+      budget.amount = body.amount;
+    }
+    if (body.rollover !== undefined) budget.rollover = body.rollover;
+    if (body.fixed !== undefined) budget.fixed = body.fixed;
+    if (body.name) budget.name = body.name;
+    persist();
+    return budget;
+  },
+
+  deleteBudget: (id: string) => {
+    const d = db();
+    d.budgets = d.budgets.filter((b) => b.id !== id);
+    persist();
+  },
+
+  budgetSuggestions: (): BudgetSuggestion[] => {
+    const d = db();
+    const anchor = d.household.cycle_start_day;
+    const windows: { start: string; end: string }[] = [];
+    let start = periodBounds(anchor, new Date()).start;
+    for (let i = 0; i < 3; i++) {
+      const prev = previousPeriod(anchor, start);
+      windows.push(prev);
+      start = prev.start;
+    }
+    const rows = d.transactions.filter(
+      (t) =>
+        t.direction === "debit" &&
+        !(t as Txn & { transfer_id?: string }).transfer_id &&
+        t.occurred_at >= windows[2].start &&
+        t.occurred_at <= windows[0].end,
+    );
+    const active = windows.filter((w) => rows.some((t) => t.occurred_at >= w.start && t.occurred_at <= w.end)).length;
+    if (!active) return [];
+    const totals = new Map<string | null, number>();
+    for (const t of rows) {
+      const parent = t.category_id ? d.categories.find((c) => c.id === t.category_id)?.parent_id : null;
+      for (const key of [null, t.category_id, parent].filter((k, i) => i === 0 || k)) {
+        totals.set(key ?? null, (totals.get(key ?? null) ?? 0) + t.amount);
+      }
+    }
+    return [...totals.entries()].map(([category_id, total]) => ({
+      category_id,
+      average: Math.floor(total / active),
+      periods: active,
+    }));
+  },
+
   budgetStatus: (): BudgetStatus[] => {
     const d = db();
     const anchor = d.household.cycle_start_day;
     const today = new Date();
     const { start, end } = periodBounds(anchor, today);
-    const elapsed = elapsedFraction(start, end, today) * 100;
+    const elapsed = elapsedFraction(start, end, today);
+    const daysLeft = Math.max(daysBetween(toISO(today), end) + 1, 0);
+    const order = { overall: 0, group: 1, category: 2 };
 
     return d.budgets
       .filter((b) => b.is_active)
       .map((budget) => {
-        const inPeriod = d.transactions.filter(
-          (t) =>
-            t.direction === "debit" &&
-            !(t as Txn & { transfer_id?: string }).transfer_id &&
-            t.occurred_at >= start &&
-            t.occurred_at <= end &&
-            (!budget.category_id || t.category_id === budget.category_id),
-        );
-        const spent = inPeriod.reduce((sum, t) => sum + t.amount, 0);
+        const scope = categoryScope(budget.category_id, d.categories);
+        const spent = d.transactions
+          .filter(
+            (t) =>
+              t.direction === "debit" &&
+              !(t as Txn & { transfer_id?: string }).transfer_id &&
+              t.occurred_at >= start &&
+              t.occurred_at <= end &&
+              (!scope || (t.category_id !== null && scope.has(t.category_id))),
+          )
+          .reduce((sum, t) => sum + t.amount, 0);
         const allocated = budget.amount;
         const remaining = allocated - spent;
         const used = allocated ? (spent / allocated) * 100 : 0;
-        const status: BudgetStatus["status"] =
-          spent > allocated ? "over" : spent / allocated > Math.max((elapsed + 15) / 100, 0.9) ? "at_risk" : "on_track";
+        const category = d.categories.find((c) => c.id === budget.category_id);
+        const fixed = Boolean(budget.fixed);
 
         return {
           id: budget.id,
           name: budget.name,
           category_id: budget.category_id,
-          category_name: d.categories.find((c) => c.id === budget.category_id)?.name ?? null,
+          category_name: category?.name ?? null,
+          parent_id: category?.parent_id ?? null,
+          scope: budgetScope(budget.category_id, d.categories),
           period_start: start,
           period_end: end,
           allocated,
@@ -585,11 +717,17 @@ export const demo = {
           spent,
           remaining,
           used_pct: Math.round(used * 10) / 10,
-          elapsed_pct: Math.round(elapsed * 10) / 10,
-          status,
+          elapsed_pct: Math.round(elapsed * 1000) / 10,
+          status: paceStatus(spent, allocated, elapsed, fixed),
           rollover: budget.rollover,
+          fixed,
+          category_kind: category?.kind ?? null,
+          days_left: daysLeft,
+          daily_allowance: fixed || !daysLeft ? 0 : Math.floor(Math.max(remaining, 0) / daysLeft),
+          projected: fixed ? null : projectedSpend(spent, elapsed),
         };
-      });
+      })
+      .sort((a, b) => order[a.scope] - order[b.scope] || a.name.localeCompare(b.name));
   },
 
   goals: () => db().goals,
@@ -652,7 +790,7 @@ export const demo = {
     const prevIncome = inWindow(prev.start, prev.end, "credit").reduce((s, t) => s + t.amount, 0);
 
     const statuses = demo.budgetStatus();
-    const budgetedRemaining = statuses.reduce((s, b) => s + Math.max(b.remaining, 0), 0);
+    const budgetedRemaining = reservedByBudgets(statuses);
     const series = detectSeries(d.transactions, today);
     const committed = series
       .filter((s) => s.next_due >= start && s.next_due <= end)
