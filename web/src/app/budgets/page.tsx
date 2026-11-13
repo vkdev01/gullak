@@ -4,6 +4,7 @@ import { useState } from "react";
 import BudgetCard from "@/components/budgets/BudgetCard";
 import NewBudgetForm from "@/components/budgets/NewBudgetForm";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useCategories } from "@/hooks/useCategories";
 import type { BudgetStatus, Category } from "@/lib/api";
@@ -61,21 +62,18 @@ export default function BudgetsPage() {
             : "This period"}
         </span>
         {household && (
-          <label>
+          <div className={b.cycle}>
             Periods start on the
-            <select
-              value={household.cycle_start_day}
-              onChange={(e) => void budgets.setCycleDay(Number(e.target.value))}
+            <Select
+              size="sm"
+              className={b.cycleSelect}
+              value={String(household.cycle_start_day)}
+              onChange={(day) => void budgets.setCycleDay(Number(day))}
               aria-label="Day each budget period starts"
-            >
-              {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                <option key={day} value={day}>
-                  {ordinal(day)}
-                </option>
-              ))}
-            </select>
+              options={Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: ordinal(i + 1) }))}
+            />
             <em>set it to your salary day</em>
-          </label>
+          </div>
         )}
       </section>
 

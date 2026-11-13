@@ -5,6 +5,7 @@ import { api, type Category, type TransactionDetail } from "@/lib/api";
 import { money } from "@/lib/format";
 import { normaliseTags } from "@/lib/tags";
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
 import s from "./ledger.module.scss";
 
 type Props = {
@@ -69,13 +70,13 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // an open picker handles (and prevents) its own Escape
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const leaves = categories.filter((c) => c.parent_id);
   const incoming = detail?.direction === "credit";
 
   async function markReviewed() {
@@ -143,21 +144,17 @@ export default function TransactionDrawer({ id, categories, onClose, onRecategor
               <div>
                 <dt>Category</dt>
                 <dd>
-                  <select
-                    className={s.fieldSelect}
+                  <CategoryPicker
+                    categories={categories}
                     value={detail.category_id ?? ""}
-                    onChange={(e) => {
-                      onRecategorise(detail.id, e.target.value);
-                      setDetail({ ...detail, category_id: e.target.value || null });
+                    emptyLabel="Uncategorised"
+                    size="sm"
+                    aria-label="Category"
+                    onChange={(id) => {
+                      onRecategorise(detail.id, id);
+                      setDetail({ ...detail, category_id: id || null });
                     }}
-                  >
-                    <option value="">Uncategorised</option>
-                    {leaves.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </dd>
               </div>
 

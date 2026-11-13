@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import { api, type Account } from "@/lib/api";
 import { ACCOUNT_TYPE_LABEL } from "@/lib/flows";
 import { money, parseRupees, shortDate, todayISO } from "@/lib/format";
@@ -179,17 +180,17 @@ export default function SavingsCard({ account, spendingAccounts, onChanged }: Pr
                 <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" autoFocus />
               </label>
               {(action === "add" || action === "withdraw") && (
-                <label className={s.field}>
+                <div className={s.field}>
                   <span>{action === "add" ? "From" : "Into"}</span>
-                  <select value={other} onChange={(e) => setOther(e.target.value)}>
-                    {spendingAccounts.length === 0 && <option value="">Add a bank account first</option>}
-                    {spendingAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <Select
+                    size="sm"
+                    value={other}
+                    onChange={setOther}
+                    aria-label={action === "add" ? "Take the money from" : "Put the money into"}
+                    placeholder="Add a bank account first"
+                    options={spendingAccounts.map((a) => ({ value: a.id, label: a.name }))}
+                  />
+                </div>
               )}
               {action !== "value" && (
                 <>

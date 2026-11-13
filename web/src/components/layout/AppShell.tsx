@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Menu, MenuButton, MenuItem, MenuItems, MenuSeparator } from "@headlessui/react";
 import { api, isDemoMode, setToken } from "@/lib/api";
 import { navGroups, site } from "@/config/site";
 import CommandPalette from "./CommandPalette";
@@ -14,32 +15,10 @@ type Me = { name: string; email: string } | null;
 
 function AccountMenu({ me, compact = false }: { me: Me; compact?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
 
   return (
-    <div className={compact ? s.accountCompact : s.account} ref={ref}>
-      <button
-        type="button"
-        className={s.accountBtn}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={compact ? "Account" : undefined}
-        onClick={() => setOpen((v) => !v)}
-      >
+    <Menu as="div" className={compact ? s.accountCompact : s.account}>
+      <MenuButton className={s.accountBtn} aria-label={compact ? "Account" : undefined}>
         <span className={s.avatar} aria-hidden="true">
           {(me?.name ?? "?").slice(0, 1).toUpperCase()}
         </span>
@@ -49,12 +28,18 @@ function AccountMenu({ me, compact = false }: { me: Me; compact?: boolean }) {
             <em>{isDemoMode() ? "Demo · this browser" : me?.email}</em>
           </span>
         )}
-      </button>
-      {open && (
-        <div className={s.menu} role="menu">
+      </MenuButton>
+      <MenuItems anchor={compact ? "bottom end" : "top start"} transition className={s.menu}>
+        <MenuItem>
+          <Link href="/accounts/">Accounts &amp; net worth</Link>
+        </MenuItem>
+        <MenuItem>
+          <Link href="/budgets/">Salary day &amp; budgets</Link>
+        </MenuItem>
+        <MenuSeparator className={s.menuRule} />
+        <MenuItem>
           <button
             type="button"
-            role="menuitem"
             onClick={() => {
               setToken(null);
               router.push("/login/");
@@ -62,9 +47,9 @@ function AccountMenu({ me, compact = false }: { me: Me; compact?: boolean }) {
           >
             Sign out
           </button>
-        </div>
-      )}
-    </div>
+        </MenuItem>
+      </MenuItems>
+    </Menu>
   );
 }
 

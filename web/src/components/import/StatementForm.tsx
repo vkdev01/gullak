@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import type { Account } from "@/lib/api";
 import s from "./import.module.scss";
 
@@ -47,14 +48,14 @@ export default function StatementForm({ accounts, busy, onPreview }: Props) {
 
       <div className={s.row}>
         <div className={s.field}>
-          <label htmlFor="import-account">Account</label>
-          <select id="import-account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <span className={s.fieldLabel}>Account</span>
+          <Select
+            value={accountId}
+            onChange={setAccountId}
+            aria-label="Account the statement belongs to"
+            options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+            placeholder="Add an account first"
+          />
         </div>
 
         <Button

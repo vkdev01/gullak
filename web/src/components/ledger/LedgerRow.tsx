@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import CategoryPicker from "@/components/ui/CategoryPicker";
 import { money } from "@/lib/format";
 import { ledgerHref } from "@/lib/links";
 import type { Category, Txn } from "@/lib/api";
@@ -21,7 +22,6 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
   const rowRef = useRef<HTMLDivElement>(null);
   const incoming = transaction.direction === "credit";
   const category = categories.find((c) => c.id === transaction.category_id);
-  const leaves = categories.filter((c) => c.parent_id);
   const tint = category ? TINT[category.colour] ?? s.cGreen : s.cNone;
 
   const stopEditing = (refocus: boolean) => {
@@ -76,31 +76,22 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
 
       <div>
         {editing ? (
-          <select
-            className={s.chipSelect}
-            autoFocus
-            value={transaction.category_id ?? ""}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              onRecategorise(transaction.id, e.target.value);
-              stopEditing(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
+          // the picker's list is portalled, but React still bubbles its clicks to the row
+          <div onClick={(e) => e.stopPropagation()}>
+            <CategoryPicker
+              categories={categories}
+              value={transaction.category_id ?? ""}
+              emptyLabel="Uncategorised"
+              size="sm"
+              autoFocus
+              aria-label={`Category for ${transaction.merchant}`}
+              onChange={(id) => {
+                onRecategorise(transaction.id, id);
                 stopEditing(true);
-              }
-            }}
-            onBlur={() => stopEditing(false)}
-            aria-label={`Category for ${transaction.merchant}`}
-          >
-            <option value="">Uncategorised</option>
-            {leaves.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+              }}
+              onClose={() => stopEditing(false)}
+            />
+          </div>
         ) : (
           <button
             type="button"

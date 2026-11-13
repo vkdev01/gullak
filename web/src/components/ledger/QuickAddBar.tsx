@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import { useQuickAdd, type QuickAddInput } from "@/hooks/useQuickAdd";
 import type { Account } from "@/lib/api";
 import { ACCOUNT_TYPE_LABEL } from "@/lib/flows";
@@ -50,19 +51,18 @@ export default function QuickAddBar({ accounts, preferredAccountId, onAdd }: Pro
           aria-describedby="quick-add-preview"
         />
         <kbd className={s.kbd}>N</kbd>
-        <select
+        <Select
+          variant="bare"
           className={s.quickAccount}
           value={accountId}
-          onChange={(e) => setChosen(e.target.value)}
+          onChange={setChosen}
           aria-label="Account for the new row"
-        >
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-              {a.kind === "investment" ? ` · ${ACCOUNT_TYPE_LABEL[a.type] ?? a.type}` : ""}
-            </option>
-          ))}
-        </select>
+          options={accounts.map((a) => ({
+            value: a.id,
+            label: a.name,
+            hint: a.kind === "investment" ? ACCOUNT_TYPE_LABEL[a.type] ?? a.type : undefined,
+          }))}
+        />
         <Button type="submit" size="sm" disabled={!ready || submitting || !accountId}>
           {submitting ? "Adding…" : "Add"}
         </Button>

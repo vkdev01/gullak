@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@/components/ui/Button";
+import CategoryPicker from "@/components/ui/CategoryPicker";
 import { money, shortDate } from "@/lib/format";
 import type { Category, ImportPreview as Preview } from "@/lib/api";
 import s from "./import.module.scss";
@@ -78,20 +79,16 @@ export default function ImportPreview({
                 </td>
                 <td>{row.merchant}</td>
                 <td>
-                  <select
-                    className={s.catSelect}
+                  <CategoryPicker
+                    categories={categories}
                     value={row.category_id ?? ""}
-                    onChange={(e) => onCategory(row.id, e.target.value)}
+                    emptyLabel="Uncategorised"
+                    size="sm"
                     disabled={row.is_duplicate}
                     aria-label={`Category for ${row.merchant}`}
-                  >
-                    <option value="">Uncategorised</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(id) => onCategory(row.id, id)}
+                    className={s.catPicker}
+                  />
                 </td>
                 <td className={s.amount}>
                   {row.direction === "credit" ? "+" : "−"}
