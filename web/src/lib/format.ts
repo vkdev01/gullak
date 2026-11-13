@@ -35,3 +35,30 @@ export function shortDate(iso: string): string {
 export function monthLabel(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { month: "long" });
 }
+
+/** "2026-11" for a date, so a month can be used as a filter key. */
+export const monthKey = (iso: string) => iso.slice(0, 7);
+
+export function monthLabelFromKey(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+}
+
+export function shiftMonth(key: string, delta: number): string {
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** First and last day of a month key. */
+export function monthRange(key: string): { start: string; end: string } {
+  const [y, m] = key.split("-").map(Number);
+  const start = new Date(y, m - 1, 1);
+  const end = new Date(y, m, 0);
+  return { start: toISODate(start), end: toISODate(end) };
+}
+
+export function toISODate(d: Date): string {
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}

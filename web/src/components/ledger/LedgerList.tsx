@@ -13,15 +13,11 @@ type Props = {
   categories: Category[];
   view: LedgerView;
   hasAny: boolean;
+  loading: boolean;
   total: number;
   out: number;
   income: number;
-  selectedId: string | null;
-  hasMore: boolean;
-  loadingMore: boolean;
-  onSelect: (id: string) => void;
   onRecategorise: (id: string, categoryId: string) => void;
-  onLoadMore: () => void;
   onSeed: () => void;
   seeding: boolean;
 };
@@ -46,18 +42,24 @@ export default function LedgerList({
   categories,
   view,
   hasAny,
+  loading,
   total,
   out,
   income,
-  selectedId,
-  hasMore,
-  loadingMore,
-  onSelect,
   onRecategorise,
-  onLoadMore,
   onSeed,
   seeding,
 }: Props) {
+  if (loading && days.length === 0) {
+    return (
+      <div className={s.list}>
+        <div className={s.empty}>
+          <p className="small muted">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (days.length === 0) {
     const copy = EMPTY[view];
     return (
@@ -88,8 +90,6 @@ export default function LedgerList({
           date={date}
           transactions={list}
           categories={categories}
-          selectedId={selectedId}
-          onSelect={onSelect}
           onRecategorise={onRecategorise}
         />
       ))}
@@ -102,14 +102,6 @@ export default function LedgerList({
           out {money(out)} · in {money(income)}
         </span>
       </div>
-
-      {hasMore && (
-        <div className={s.more}>
-          <Button variant="ghost" size="sm" onClick={onLoadMore} disabled={loadingMore}>
-            {loadingMore ? "Loading…" : "Load more"}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

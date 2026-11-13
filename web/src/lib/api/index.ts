@@ -5,6 +5,7 @@ import type {
   Budget,
   BudgetStatus,
   Category,
+  Count,
   Dashboard,
   Goal,
   GroupRow,
@@ -23,6 +24,7 @@ export type {
   Budget,
   BudgetStatus,
   Category,
+  Count,
   Dashboard,
   Goal,
   GroupRow,
@@ -70,6 +72,15 @@ export const api = {
       ? Promise.resolve(demo.transactions(params))
       : request(
           `/transactions?${new URLSearchParams(
+            Object.entries(params).map(([k, v]) => [k, String(v)]),
+          ).toString()}`,
+        ),
+
+  count: (params: Record<string, string | number | boolean> = {}): Promise<Count> =>
+    isDemoMode()
+      ? Promise.resolve(demo.count(params))
+      : request(
+          `/transactions/count?${new URLSearchParams(
             Object.entries(params).map(([k, v]) => [k, String(v)]),
           ).toString()}`,
         ),

@@ -213,6 +213,8 @@ export const demo = {
     if (params.category_id) rows = rows.filter((t) => t.category_id === params.category_id);
     if (params.direction) rows = rows.filter((t) => t.direction === params.direction);
     if (params.needs_review) rows = rows.filter((t) => t.needs_review);
+    if (params.start) rows = rows.filter((t) => t.occurred_at >= String(params.start));
+    if (params.end) rows = rows.filter((t) => t.occurred_at <= String(params.end));
     if (params.uncategorised) rows = rows.filter((t) => !t.category_id);
     if (params.q) {
       const q = String(params.q).toLowerCase();
@@ -227,6 +229,13 @@ export const demo = {
     const limit = Number(params.limit ?? 200);
     const offset = Number(params.offset ?? 0);
     return rows.slice(offset, offset + limit).map(withNames);
+  },
+
+  count: (params: Record<string, string | number | boolean> = {}) => {
+    const rows = demo.transactions({ ...params, limit: 100000, offset: 0 });
+    const out = rows.filter((t) => t.direction === "debit").reduce((sum, t) => sum + t.amount, 0);
+    const income = rows.filter((t) => t.direction === "credit").reduce((sum, t) => sum + t.amount, 0);
+    return { count: rows.length, out, income, net: income - out };
   },
 
   createTransaction: (body: Record<string, unknown>) => {
