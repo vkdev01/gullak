@@ -1,16 +1,36 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import { useQuickAdd, type QuickAddInput } from "@/hooks/useQuickAdd";
+import type { Account } from "@/lib/api";
+import { ACCOUNT_TYPE_LABEL } from "@/lib/flows";
 import { money, shortDate } from "@/lib/format";
 import s from "./ledger.module.scss";
 
 type Props = {
-  onAdd: (input: QuickAddInput) => Promise<void>;
+  accounts: Account[];
+  preferredAccountId?: string;
+  onAdd: (input: QuickAddInput & { accountId: string }) => Promise<void>;
 };
 
-export default function QuickAddBar({ onAdd }: Props) {
-  const { draft, setDraft, parsed, submit, submitting, ready } = useQuickAdd(onAdd);
+export default function QuickAddBar({ accounts, preferredAccountId, onAdd }: Props) {
+  const spending = accounts.filter((a) => a.kind !== "investment");
+  const [chosen, setChosen] = useState("");
+  const accountId = chosen || preferredAccountId || spending[0]?.id || accounts[0]?.id || "";
+  const { draft, setDraft, parsed, submit, submitting, ready, error } = useQuickAdd((input) =>
+    onAdd({ ...input, accountId }),
+  );
+
+  if (accounts.length === 0) {
+    return (
+      <p className={s.quickBlocked}>
+        Add an account before recording money in or out — every row belongs to one.{" "}
+        <Link href="/accounts/">Add your bank account →</Link>
+      </p>
+    );
+  }
 
   return (
     <>
@@ -25,27 +45,54 @@ export default function QuickAddBar({ onAdd }: Props) {
           id="quick-add"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a transaction — try “450 petrol, full tank before the trip #car”"
+          placeholder="450 petrol, full tank #car — or +85000 salary for money in"
           aria-label="Quick add a transaction"
           aria-describedby="quick-add-preview"
         />
         <kbd className={s.kbd}>N</kbd>
-        <Button type="submit" size="sm" disabled={!ready || submitting}>
+        <select
+          className={s.quickAccount}
+          value={accountId}
+          onChange={(e) => setChosen(e.target.value)}
+          aria-label="Account for the new row"
+        >
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+              {a.kind === "investment" ? ` · ${ACCOUNT_TYPE_LABEL[a.type] ?? a.type}` : ""}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" size="sm" disabled={!ready || submitting || !accountId}>
           {submitting ? "Adding…" : "Add"}
         </Button>
       </form>
-      {draft.trim() && (
-        <p id="quick-add-preview" className={s.quickPreview} aria-live="polite">
-          {parsed.amount ? <b className="num">{money(parsed.amount)}</b> : <span className={s.quickMissing}>no amount yet</span>}
-          <span>{parsed.merchant}</span>
-          <span>{shortDate(parsed.date)}</span>
-          {parsed.note && <span className={s.quickNote}>“{parsed.note}”</span>}
-          {parsed.tags.map((t) => (
-            <span key={t} className={s.quickTag}>
-              #{t}
-            </span>
-          ))}
+      {error ? (
+        <p className={s.quickError} role="alert">
+          Could not add it: {error}
         </p>
+      ) : (
+        draft.trim() && (
+          <p id="quick-add-preview" className={s.quickPreview} aria-live="polite">
+            {parsed.amount ? (
+              <b className="num">
+                {parsed.direction === "credit" ? "+" : "−"}
+                {money(parsed.amount)}
+              </b>
+            ) : (
+              <span className={s.quickMissing}>no amount yet</span>
+            )}
+            <span>{parsed.direction === "credit" ? "money in" : "money out"}</span>
+            <span>{parsed.merchant}</span>
+            <span>{shortDate(parsed.date)}</span>
+            {parsed.note && <span className={s.quickNote}>“{parsed.note}”</span>}
+            {parsed.tags.map((t) => (
+              <span key={t} className={s.quickTag}>
+                #{t}
+              </span>
+            ))}
+          </p>
+        )
       )}
     </>
   );

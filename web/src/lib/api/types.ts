@@ -6,6 +6,55 @@ export type Account = {
   masked_number: string;
   opening_balance: number;
   balance: number;
+  kind?: "spending" | "investment";
+  description?: string;
+  interest_rate?: number | null;
+  maturity_date?: string | null;
+  monthly_amount?: number | null;
+  current_value?: number | null;
+  value_as_of?: string | null;
+  value?: number;
+  gain?: number | null;
+  contributed_this_period?: number;
+};
+
+export type AccountInput = Partial<
+  Pick<
+    Account,
+    | "name"
+    | "type"
+    | "institution"
+    | "masked_number"
+    | "opening_balance"
+    | "description"
+    | "interest_rate"
+    | "maturity_date"
+    | "monthly_amount"
+    | "current_value"
+  >
+>;
+
+export type PeriodFlow = {
+  period_start: string;
+  period_end: string;
+  label: string;
+  income: number;
+  spent: number;
+  invested: number;
+  withdrawn: number;
+  saved: number;
+  savings_rate: number | null;
+  invest_rate: number | null;
+};
+
+export type MoneySummary = {
+  periods: PeriodFlow[];
+  income_by_source: GroupRow[];
+  invested_by_type: GroupRow[];
+  net_worth: number;
+  liquid: number;
+  investments: number;
+  owed: number;
 };
 
 export type Category = {
@@ -159,6 +208,8 @@ export type Dashboard = {
   elapsed_pct: number;
   income: number;
   spent: number;
+  invested: number;
+  savings_due: number;
   committed: number;
   budgeted_remaining: number;
   free_to_spend: number;

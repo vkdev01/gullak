@@ -11,9 +11,11 @@ import { matchMerchant } from "../merchants";
 import { detectSeries } from "../recurring";
 import { daysBetween, elapsedFraction, periodBounds, periodLabel, previousPeriod, toISO } from "../plan";
 import { budgetScope, categoryScope, paceStatus, projectedSpend, reservedByBudgets } from "../budgets";
+import { flowOf, isInvestment, lookup, type Flow } from "../flows";
 import { normaliseTags } from "../tags";
 import type {
   Account,
+  AccountInput,
   Budget,
   BudgetStatus,
   BudgetSuggestion,
@@ -22,6 +24,7 @@ import type {
   Goal,
   GroupRow,
   Household,
+  MoneySummary,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -66,8 +69,19 @@ const DEFAULT_CATS: Record<string, string[]> = {
   "Loans & EMIs": ["Vehicle loan", "Home loan", "Personal loan"],
   Money: ["Fees", "Interest", "Insurance"],
   Other: ["Miscellaneous", "Gifts", "Education", "Personal care"],
-  Income: ["Salary", "Freelance", "Refund"],
+  "Savings & investments": [
+    "Mutual funds / SIP",
+    "Stocks",
+    "Fixed deposit",
+    "Recurring deposit",
+    "PPF",
+    "EPF / VPF",
+    "NPS",
+    "Gold",
+  ],
+  Income: ["Salary", "Bonus", "Freelance", "Interest earned", "Dividends", "Rental income", "Refund"],
 };
+const KINDS: Record<string, string> = { Income: "income", "Savings & investments": "saving" };
 
 const MERCHANTS: [string, string, number, [number, number]][] = [
   ["Swiggy", "Dining", 1, [180, 620]],
@@ -97,8 +111,9 @@ function blank(): DB {
   Object.entries(DEFAULT_CATS).forEach(([parent, kids], i) => {
     const pid = uid();
     const colour = ["green", "clay", "butter"][i % 3];
-    cats.push({ id: pid, parent_id: null, name: parent, kind: parent === "Income" ? "income" : "expense", colour });
-    kids.forEach((k) => cats.push({ id: uid(), parent_id: pid, name: k, kind: parent === "Income" ? "income" : "expense", colour }));
+    const kind = KINDS[parent] ?? "expense";
+    cats.push({ id: pid, parent_id: null, name: parent, kind, colour });
+    kids.forEach((k) => cats.push({ id: uid(), parent_id: pid, name: k, kind, colour }));
   });
   return {
     household: { id: hid, name: "Demo household", currency: "INR", cycle_start_day: 1 },
@@ -184,6 +199,53 @@ function recalc() {
   }));
 }
 
+/** Rows of one flow inside a window, by the same rules as api/app/services/flows.py. */
+function flowRows(flow: Flow, from?: string, to?: string): Txn[] {
+  const d = db();
+  const l = lookup(d.accounts, d.categories);
+  return d.transactions.filter(
+    (t) => flowOf(t, l) === flow && (!from || t.occurred_at >= from) && (!to || t.occurred_at <= to),
+  );
+}
+
+const sum = (rows: Txn[]) => rows.reduce((s, t) => s + t.amount, 0);
+
+function currentPeriod() {
+  return periodBounds(db().household.cycle_start_day, new Date());
+}
+
+function describeAccount(a: Account): Account {
+  const investment = isInvestment(a.type);
+  const { start, end } = currentPeriod();
+  const value = investment && a.current_value != null ? a.current_value : a.balance;
+  return {
+    ...a,
+    kind: investment ? "investment" : "spending",
+    value,
+    gain: investment && a.current_value != null ? value - a.balance : null,
+    contributed_this_period: investment
+      ? sum(
+          db().transactions.filter(
+            (t) => t.account_id === a.id && t.direction === "credit" && t.occurred_at >= start && t.occurred_at <= end,
+          ),
+        )
+      : 0,
+  };
+}
+
+function savingsDue(start: string, end: string): number {
+  return db()
+    .accounts.filter((a) => isInvestment(a.type) && (a.monthly_amount ?? 0) > 0)
+    .reduce((due, a) => {
+      const paid = sum(
+        db().transactions.filter(
+          (t) => t.account_id === a.id && t.direction === "credit" && t.occurred_at >= start && t.occurred_at <= end,
+        ),
+      );
+      return due + Math.max((a.monthly_amount ?? 0) - paid, 0);
+    }, 0);
+}
+
 export const demo = {
   signup: (email: string, _password: string, name: string) => {
     const d = db();
@@ -196,21 +258,135 @@ export const demo = {
 
   accounts: () => {
     recalc();
-    return db().accounts;
+    return db().accounts.map(describeAccount);
   },
-  createAccount: (body: Partial<Account>) => {
+  createAccount: (body: AccountInput) => {
+    if (!body.name?.trim()) throw new Error("name: an account needs a name");
     const a: Account = {
       id: uid(),
-      name: body.name ?? "Account",
+      name: body.name.trim(),
       type: body.type ?? "bank",
       institution: body.institution ?? "",
       masked_number: body.masked_number ?? "",
       opening_balance: body.opening_balance ?? 0,
       balance: body.opening_balance ?? 0,
+      description: body.description ?? "",
+      interest_rate: body.interest_rate ?? null,
+      maturity_date: body.maturity_date ?? null,
+      monthly_amount: body.monthly_amount ?? null,
+      current_value: body.current_value ?? null,
+      value_as_of: body.current_value != null ? todayISO() : null,
     };
     db().accounts.push(a);
     persist();
-    return a;
+    return describeAccount(a);
+  },
+  updateAccount: (id: string, body: AccountInput) => {
+    const a = db().accounts.find((x) => x.id === id);
+    if (!a) throw new Error("Account not found");
+    Object.assign(a, body);
+    if ("current_value" in body) a.value_as_of = body.current_value != null ? todayISO() : null;
+    persist();
+    recalc();
+    return describeAccount(db().accounts.find((x) => x.id === id)!);
+  },
+  transfer: (body: { from_account_id: string; to_account_id: string; amount: number; occurred_at: string; note?: string }) => {
+    const d = db();
+    if (body.from_account_id === body.to_account_id) throw new Error("Pick two different accounts");
+    const from = d.accounts.find((a) => a.id === body.from_account_id);
+    const to = d.accounts.find((a) => a.id === body.to_account_id);
+    if (!from || !to) throw new Error("Account not found in this household");
+    const transfer_id = uid();
+    const leg = (account: Account, direction: "debit" | "credit", merchant: string) =>
+      ({
+        id: uid(),
+        account_id: account.id,
+        amount: body.amount,
+        direction,
+        occurred_at: body.occurred_at,
+        merchant,
+        category_id: null,
+        note: body.note ?? "",
+        tags: [],
+        source: "manual",
+        transfer_id,
+      }) as Txn;
+    const out = leg(from, "debit", `Transfer to ${to.name}`);
+    const into = leg(to, "credit", `Transfer from ${from.name}`);
+    d.transactions.push(out, into);
+    persist();
+    recalc();
+    return { transfer_id, from_transaction_id: out.id, to_transaction_id: into.id };
+  },
+  moneySummary: (periods = 6): MoneySummary => {
+    const d = db();
+    const anchor = d.household.cycle_start_day;
+    const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : null);
+    const history = [];
+    let window = currentPeriod();
+    for (let i = 0; i < periods; i++) {
+      const income = sum(flowRows("income", window.start, window.end));
+      const spent = sum(flowRows("spend", window.start, window.end));
+      const invested = sum(flowRows("invest", window.start, window.end));
+      history.push({
+        period_start: window.start,
+        period_end: window.end,
+        label: periodLabel(window.start, window.end),
+        income,
+        spent,
+        invested,
+        withdrawn: sum(flowRows("withdraw", window.start, window.end)),
+        saved: income - spent,
+        savings_rate: pct(income - spent, income),
+        invest_rate: pct(invested, income),
+      });
+      window = previousPeriod(anchor, window.start);
+    }
+    const { start, end } = currentPeriod();
+    const accounts = demo.accounts();
+    const liquid = accounts.filter((a) => !isInvestment(a.type) && a.balance > 0).reduce((s, a) => s + a.balance, 0);
+    const owed = accounts.filter((a) => !isInvestment(a.type) && a.balance < 0).reduce((s, a) => s - a.balance, 0);
+    const investments = accounts.filter((a) => isInvestment(a.type)).reduce((s, a) => s + (a.value ?? a.balance), 0);
+    const grouped = (flow: Flow, byAccountType: boolean): GroupRow[] => {
+      const buckets = new Map<string, GroupRow>();
+      for (const t of flowRows(flow, start, end)) {
+        const account = d.accounts.find((a) => a.id === t.account_id);
+        const byType = byAccountType && account && isInvestment(account.type);
+        const key = byType ? account!.type : t.category_id ?? "uncategorised";
+        const label = byType ? account!.name : catName(t.category_id) ?? "Uncategorised";
+        const b = buckets.get(key) ?? { key, label, total: 0, count: 0 };
+        b.total += t.amount;
+        b.count += 1;
+        buckets.set(key, b);
+      }
+      return [...buckets.values()].sort((a, b) => b.total - a.total);
+    };
+    return {
+      periods: history,
+      income_by_source: grouped("income", false),
+      invested_by_type: grouped("invest", true),
+      net_worth: liquid + investments - owed,
+      liquid,
+      investments,
+      owed,
+    };
+  },
+  addDefaultCategories: () => {
+    const d = db();
+    Object.entries(DEFAULT_CATS).forEach(([parent, kids], i) => {
+      let p = d.categories.find((c) => !c.parent_id && c.name.toLowerCase() === parent.toLowerCase());
+      if (!p) {
+        p = { id: uid(), parent_id: null, name: parent, kind: KINDS[parent] ?? "expense", colour: ["green", "clay", "butter"][i % 3] };
+        d.categories.push(p);
+      }
+      for (const k of kids) {
+        if (!d.categories.some((c) => c.parent_id === p!.id && c.name.toLowerCase() === k.toLowerCase())) {
+          d.categories.push({ id: uid(), parent_id: p.id, name: k, kind: p.kind, colour: p.colour });
+        }
+      }
+    });
+    persist();
+    return d.categories;
   },
   categories: () => db().categories,
 
@@ -253,6 +429,10 @@ export const demo = {
   transactions: (params: Record<string, string | number | boolean> = {}) => {
     const d = db();
     let rows = [...d.transactions];
+    if (params.flow) {
+      const l = lookup(d.accounts, d.categories);
+      rows = rows.filter((t) => flowOf(t, l) === params.flow);
+    }
     if (params.exclude_transfers) rows = rows.filter((t) => !(t as Txn & { transfer_id?: string }).transfer_id);
     if (params.account_id) rows = rows.filter((t) => t.account_id === params.account_id);
     if (params.category_id) rows = rows.filter((t) => t.category_id === params.category_id);
@@ -290,12 +470,10 @@ export const demo = {
     return { count: rows.length, out, income, net: income - out };
   },
 
-  /** Same contract as GET /transactions/group: debits only, transfers excluded. */
-  group: (by: "category" | "day" | "merchant", start?: string, end?: string): GroupRow[] => {
+  /** Same contract as GET /transactions/group: one flow, spending by default. */
+  group: (by: "category" | "day" | "merchant", start?: string, end?: string, flow: Flow = "spend"): GroupRow[] => {
     const buckets = new Map<string, GroupRow>();
-    for (const t of db().transactions) {
-      if (t.direction !== "debit" || (t as Txn & { transfer_id?: string }).transfer_id) continue;
-      if ((start && t.occurred_at < start) || (end && t.occurred_at > end)) continue;
+    for (const t of flowRows(flow, start, end)) {
       const key = by === "category" ? t.category_id ?? "uncategorised" : by === "merchant" ? t.merchant : t.occurred_at;
       const label = by === "category" ? catName(t.category_id) ?? "Uncategorised" : key;
       const bucket = buckets.get(key) ?? { key, label, total: 0, count: 0 };
@@ -373,8 +551,8 @@ export const demo = {
   summary: (): Summary => {
     const month = todayISO().slice(0, 7);
     const rows = db().transactions.filter((t) => t.occurred_at.startsWith(month));
-    const spent = rows.filter((t) => t.direction === "debit").reduce((s, t) => s + t.amount, 0);
-    const income = rows.filter((t) => t.direction === "credit").reduce((s, t) => s + t.amount, 0);
+    const spent = sum(flowRows("spend", `${month}-01`, `${month}-31`));
+    const income = sum(flowRows("income", `${month}-01`, `${month}-31`));
     return { spent, income, net: income - spent, count: rows.length };
   },
 
@@ -651,13 +829,7 @@ export const demo = {
       windows.push(prev);
       start = prev.start;
     }
-    const rows = d.transactions.filter(
-      (t) =>
-        t.direction === "debit" &&
-        !(t as Txn & { transfer_id?: string }).transfer_id &&
-        t.occurred_at >= windows[2].start &&
-        t.occurred_at <= windows[0].end,
-    );
+    const rows = flowRows("spend", windows[2].start, windows[0].end);
     const active = windows.filter((w) => rows.some((t) => t.occurred_at >= w.start && t.occurred_at <= w.end)).length;
     if (!active) return [];
     const totals = new Map<string | null, number>();
@@ -683,20 +855,13 @@ export const demo = {
     const daysLeft = Math.max(daysBetween(toISO(today), end) + 1, 0);
     const order = { overall: 0, group: 1, category: 2 };
 
+    const spendNow = flowRows("spend", start, end);
+
     return d.budgets
       .filter((b) => b.is_active)
       .map((budget) => {
         const scope = categoryScope(budget.category_id, d.categories);
-        const spent = d.transactions
-          .filter(
-            (t) =>
-              t.direction === "debit" &&
-              !(t as Txn & { transfer_id?: string }).transfer_id &&
-              t.occurred_at >= start &&
-              t.occurred_at <= end &&
-              (!scope || (t.category_id !== null && scope.has(t.category_id))),
-          )
-          .reduce((sum, t) => sum + t.amount, 0);
+        const spent = sum(spendNow.filter((t) => !scope || (t.category_id !== null && scope.has(t.category_id))));
         const allocated = budget.amount;
         const remaining = allocated - spent;
         const used = allocated ? (spent / allocated) * 100 : 0;
@@ -776,22 +941,18 @@ export const demo = {
     const prev = previousPeriod(anchor, start);
 
     const inWindow = (from: string, to: string, direction: "debit" | "credit") =>
-      d.transactions.filter(
-        (t) =>
-          t.direction === direction &&
-          !(t as Txn & { transfer_id?: string }).transfer_id &&
-          t.occurred_at >= from &&
-          t.occurred_at <= to,
-      );
+      flowRows(direction === "debit" ? "spend" : "income", from, to);
 
     const rows = inWindow(start, end, "debit");
     const spent = rows.reduce((s, t) => s + t.amount, 0);
     const income = inWindow(start, end, "credit").reduce((s, t) => s + t.amount, 0);
     const prevIncome = inWindow(prev.start, prev.end, "credit").reduce((s, t) => s + t.amount, 0);
+    const invested = sum(flowRows("invest", start, end));
+    const planned = savingsDue(start, end);
 
     const statuses = demo.budgetStatus();
     const budgetedRemaining = reservedByBudgets(statuses);
-    const series = detectSeries(d.transactions, today);
+    const series = detectSeries(flowRows("spend"), today);
     const committed = series
       .filter((s) => s.next_due >= start && s.next_due <= end)
       .reduce((sum, s) => sum + s.expected_amount, 0);
@@ -851,9 +1012,11 @@ export const demo = {
       elapsed_pct: Math.round(elapsedFraction(start, end, today) * 1000) / 10,
       income,
       spent,
+      invested,
+      savings_due: planned,
       committed,
       budgeted_remaining: budgetedRemaining,
-      free_to_spend: expectedIncome - spent - committed - budgetedRemaining,
+      free_to_spend: expectedIncome - spent - invested - committed - planned - budgetedRemaining,
       budgets: statuses,
       goals: d.goals.map((g) => ({ ...g, contributions: undefined })) as unknown as Goal[],
       due_soon: series
@@ -865,7 +1028,7 @@ export const demo = {
     };
   },
 
-  recurring: () => detectSeries(db().transactions, new Date()),
+  recurring: () => detectSeries(flowRows("spend"), new Date()),
 
   reset: () => {
     cache = blank();

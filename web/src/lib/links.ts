@@ -11,9 +11,22 @@ export type LedgerLink = {
   account?: string;
   transfers?: "exclude";
   when?: "all";
+  flow?: "spend" | "income" | "invest" | "withdraw";
 };
 
-const KEYS: (keyof LedgerLink)[] = ["category", "direction", "from", "to", "q", "tag", "view", "account", "transfers", "when"];
+const KEYS: (keyof LedgerLink)[] = [
+  "category",
+  "direction",
+  "flow",
+  "from",
+  "to",
+  "q",
+  "tag",
+  "view",
+  "account",
+  "transfers",
+  "when",
+];
 
 export function ledgerHref(link: LedgerLink = {}): string {
   const qs = new URLSearchParams();
@@ -43,14 +56,18 @@ export function parseLedgerLink(params: URLSearchParams): LedgerLink {
     account: params.get("account") || undefined,
     transfers: params.get("transfers") === "exclude" ? "exclude" : undefined,
     when: params.get("when") === "all" ? "all" : undefined,
+    flow: (["spend", "income", "invest", "withdraw"] as const).find((f) => f === params.get("flow")),
   };
 }
 
-/** Spending as the dashboard counts it: debits in the window, transfers excluded. */
-export const spendLink = (from: string, to: string, extra: LedgerLink = {}): LedgerLink => ({
-  direction: "debit",
-  transfers: "exclude",
+/** One money flow in a window, by the rules in lib/flows.ts — the rows behind a dashboard figure. */
+export const flowLink = (flow: NonNullable<LedgerLink["flow"]>, from: string, to: string, extra: LedgerLink = {}): LedgerLink => ({
+  flow,
   from,
   to,
   ...extra,
 });
+
+/** Spending as the dashboard counts it: no transfers, nothing saved or invested. */
+export const spendLink = (from: string, to: string, extra: LedgerLink = {}): LedgerLink =>
+  flowLink("spend", from, to, extra);
