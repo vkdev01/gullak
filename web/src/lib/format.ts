@@ -6,7 +6,8 @@ const INR = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 0,
 });
 
-export const money = (paise: number) => INR.format(paise / 100);
+// Intl emits a hyphen for negatives; rows prefix a true minus, so match it.
+export const money = (paise: number) => INR.format(paise / 100).replace(/^-/, "−");
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 
