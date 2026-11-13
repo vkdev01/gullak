@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useDashboard } from "@/hooks/useDashboard";
-import { isDemoMode } from "@/lib/api";
+import { isDemoMode, resetDemoData } from "@/lib/api";
 import BudgetStrip from "@/components/dashboard/BudgetStrip";
 import DueSoon from "@/components/dashboard/DueSoon";
 import GoalsRail from "@/components/dashboard/GoalsRail";
@@ -13,17 +13,37 @@ import Button from "@/components/ui/Button";
 import s from "./page.module.scss";
 
 export default function DashboardPage() {
-  const { dashboard, loading, error } = useDashboard();
+  const { dashboard, loading, error, reload } = useDashboard();
 
   if (error) {
     return (
       <main className={s.page}>
-        <h1 className={s.title}>Could not reach the API</h1>
-        <p className="muted small">{error}</p>
-        <p className="small muted" style={{ marginTop: 12 }}>
-          Static demo? Leave <code>NEXT_PUBLIC_API_URL</code> unset. Running locally? Start the FastAPI service in{" "}
-          <code>api/</code> first.
+        <h1 className={s.title}>Something went wrong loading this page</h1>
+        <p className="muted small" style={{ fontFamily: "var(--mono)" }}>
+          {error}
         </p>
+        <p className="small muted" style={{ marginTop: 12 }}>
+          {isDemoMode()
+            ? "This is the static demo, so the data lives in your browser. If the store was written by an older build, resetting it fixes this."
+            : "The web app could not reach the API. Start the FastAPI service in api/ and check NEXT_PUBLIC_API_URL."}
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <Button size="sm" onClick={() => void reload()}>
+            Try again
+          </Button>
+          {isDemoMode() && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                await resetDemoData();
+                window.location.reload();
+              }}
+            >
+              Reset demo data
+            </Button>
+          )}
+        </div>
       </main>
     );
   }
@@ -92,8 +112,18 @@ export default function DashboardPage() {
 
       {isDemoMode() && (
         <p className={s.note}>
-          Demo build — everything lives in this browser. Run the FastAPI service and set{" "}
-          <code>NEXT_PUBLIC_API_URL</code> to use the real backend.
+          Demo build — everything lives in this browser.{" "}
+          <button
+            type="button"
+            className={s.reset}
+            onClick={async () => {
+              await resetDemoData();
+              window.location.reload();
+            }}
+          >
+            Reset demo data
+          </button>{" "}
+          · run the FastAPI service and set <code>NEXT_PUBLIC_API_URL</code> to use the real backend.
         </p>
       )}
     </main>

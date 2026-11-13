@@ -4,6 +4,7 @@ node_modules/
 # next
 web/.next/
 web/out/
+web/.probe/
 next-env.d.ts
 *.tsbuildinfo
 
@@ -23,3 +24,4 @@ __pycache__/
 
 # scratch screenshots
 /shot-*.png
+/*.png

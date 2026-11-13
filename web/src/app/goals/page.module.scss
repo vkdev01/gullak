@@ -40,3 +40,12 @@
 .formRow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 
 .empty { font-size: 13px; color: t.$dim; }
+
+.error {
+  background: t.$clay-soft;
+  color: #8c4a2c;
+  border-radius: t.$radius-sm;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}

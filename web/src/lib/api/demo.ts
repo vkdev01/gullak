@@ -111,16 +111,42 @@ function blank(): DB {
 
 let cache: DB | null = null;
 
+/**
+ * A store written by an older build is not a valid store: MVP 1 shipped
+ * `rules`/`batches`/`rows` but no `budgets`/`goals`, and MVP 0 had no
+ * `cycle_start_day`. Rather than crash on the first read, merge what exists
+ * over a fresh store so every key the code touches is present.
+ */
+function migrate(stored: Partial<DB> | null | undefined): DB {
+  const base = blank();
+  const household = { ...base.household, ...(stored?.household ?? {}) };
+  const anchor = Number(household.cycle_start_day);
+  household.cycle_start_day = Number.isFinite(anchor) && anchor >= 1 && anchor <= 28 ? Math.floor(anchor) : 1;
+
+  return {
+    household,
+    accounts: Array.isArray(stored?.accounts) && stored!.accounts!.length ? stored!.accounts! : base.accounts,
+    categories: Array.isArray(stored?.categories) && stored!.categories!.length ? stored!.categories! : base.categories,
+    transactions: stored?.transactions ?? [],
+    rules: stored?.rules ?? [],
+    batches: stored?.batches ?? [],
+    rows: stored?.rows ?? [],
+    budgets: stored?.budgets ?? [],
+    goals: stored?.goals ?? [],
+  };
+}
+
 function db(): DB {
   if (cache) return cache;
   try {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(KEY) : null;
     if (raw) {
-      cache = JSON.parse(raw) as DB;
+      cache = migrate(JSON.parse(raw) as Partial<DB>);
+      persist();
       return cache;
     }
   } catch {
-    /* ignore */
+    // A corrupt store is not worth a broken app: start clean.
   }
   cache = blank();
   persist();

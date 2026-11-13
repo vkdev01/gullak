@@ -18,7 +18,8 @@ export function addMonths(day: Date, months: number): Date {
 }
 
 export function periodBounds(anchorDay: number, on: Date): { start: string; end: string } {
-  const anchor = Math.max(1, Math.min(anchorDay, 28));
+  const safe = Number.isFinite(anchorDay) ? Math.floor(anchorDay) : 1;
+  const anchor = Math.max(1, Math.min(safe, 28));
   const thisMonth = new Date(on.getFullYear(), on.getMonth(), anchor);
   let start: Date;
   let end: Date;
