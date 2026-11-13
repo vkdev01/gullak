@@ -38,6 +38,14 @@
 
 .nav { display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; }
 
+.jumpBtn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: -6px 0 0; padding: 6px 8px;
+  border: 1px solid t.$line; border-radius: t.$radius-sm; background: t.$card;
+  font-size: 12.5px; color: t.$dim;
+  &:hover { border-color: t.$green; color: t.$ink; }
+}
+
 .group {
   display: flex; flex-direction: column; gap: 1px;
 
@@ -58,6 +66,14 @@
 
 /* ---------- account ---------- */
 .account { position: relative; border-top: 1px solid t.$line; padding-top: 10px; }
+
+.accountCompact {
+  position: relative;
+  flex: none;
+
+  .accountBtn { padding: 4px; }
+  .menu { left: auto; right: 0; bottom: auto; top: calc(100% + 6px); min-width: 160px; }
+}
 
 .accountBtn {
   width: 100%; display: flex; align-items: center; gap: 9px; padding: 6px 8px;

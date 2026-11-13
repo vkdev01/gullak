@@ -5,19 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api, isDemoMode, setToken } from "@/lib/api";
 import { navGroups, site } from "@/config/site";
+import CommandPalette from "./CommandPalette";
 import s from "./AppShell.module.scss";
 
 const trim = (path: string) => (path.length > 1 ? path.replace(/\/$/, "") : path);
 
-function AccountMenu() {
+type Me = { name: string; email: string } | null;
+
+function AccountMenu({ me, compact = false }: { me: Me; compact?: boolean }) {
   const router = useRouter();
-  const [me, setMe] = useState<{ name: string; email: string } | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    api.me().then(setMe).catch(() => setMe(null));
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -33,21 +31,24 @@ function AccountMenu() {
   }, [open]);
 
   return (
-    <div className={s.account} ref={ref}>
+    <div className={compact ? s.accountCompact : s.account} ref={ref}>
       <button
         type="button"
         className={s.accountBtn}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={compact ? "Account" : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         <span className={s.avatar} aria-hidden="true">
           {(me?.name ?? "?").slice(0, 1).toUpperCase()}
         </span>
-        <span className={s.accountText}>
-          <b>{me?.name ?? "Account"}</b>
-          <em>{isDemoMode() ? "Demo · this browser" : me?.email}</em>
-        </span>
+        {!compact && (
+          <span className={s.accountText}>
+            <b>{me?.name ?? "Account"}</b>
+            <em>{isDemoMode() ? "Demo · this browser" : me?.email}</em>
+          </span>
+        )}
       </button>
       {open && (
         <div className={s.menu} role="menu">
@@ -69,8 +70,27 @@ function AccountMenu() {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = trim(usePathname() ?? "/");
+  const [palette, setPalette] = useState(false);
+  const [me, setMe] = useState<Me>(null);
+  const signedOut = pathname === "/login";
 
-  if (pathname === "/login") return <>{children}</>;
+  useEffect(() => {
+    if (signedOut) return;
+    api.me().then(setMe).catch(() => setMe(null));
+  }, [signedOut]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  if (signedOut) return <>{children}</>;
 
   const links = navGroups.flatMap((g) => g.items);
 
@@ -80,6 +100,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/" className={s.mark}>
           <i>G</i> {site.name}
         </Link>
+        <button type="button" className={s.jumpBtn} onClick={() => setPalette(true)}>
+          <span>Jump to…</span>
+          <kbd>⌘K</kbd>
+        </button>
         <nav className={s.nav} aria-label="Main">
           {navGroups.map((group) => (
             <div key={group.label} className={s.group}>
@@ -97,7 +121,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
-        <AccountMenu />
+        <AccountMenu me={me} />
       </aside>
 
       <header className={s.top}>
@@ -111,9 +135,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+        <AccountMenu me={me} compact />
       </header>
 
       <div className={s.content}>{children}</div>
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
     </div>
   );
 }
