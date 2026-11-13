@@ -21,6 +21,20 @@ export type DateRange = { start: string; end: string };
 export const PAGE_SIZE = 50;
 const THIS_MONTH = monthKey(todayISO());
 
+export const EMPTY_FILTERS: LedgerFilters = {
+  accountId: "",
+  categoryId: "",
+  direction: "",
+  excludeTransfers: false,
+  flow: "",
+  query: "",
+  tag: "",
+  view: "all",
+};
+
+export const hasActiveFilters = (f: LedgerFilters) =>
+  Boolean(f.categoryId || f.direction || f.excludeTransfers || f.flow || f.query.trim() || f.tag || f.view !== "all");
+
 function filtersFrom(link: LedgerLink): LedgerFilters {
   return {
     accountId: link.account ?? "",
@@ -166,7 +180,7 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
       tags?: string[];
       categoryId?: string | null;
     }) => {
-      await api.createTransaction({
+      const created = await api.createTransaction({
         account_id: input.accountId,
         amount: input.amount,
         occurred_at: input.date,
@@ -176,7 +190,28 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
         category_id: input.categoryId ?? null,
         direction: input.direction ?? "debit",
       });
+      setPage(0);
       await reload();
+      return created;
+    },
+    [reload],
+  );
+
+  /** A row added for another month would vanish from view, so move the window to it. */
+  const reveal = useCallback(
+    (date: string) => {
+      if (range && (date < range.start || date > range.end)) setRange(null);
+      if (!allTime && !range && monthKey(date) !== month) setMonthState(monthKey(date));
+      setPage(0);
+    },
+    [allTime, month, range],
+  );
+
+  const remove = useCallback(
+    async (ids: string[]) => {
+      const { deleted } = await api.deleteTransactions(ids);
+      await reload();
+      return deleted;
     },
     [reload],
   );
@@ -216,6 +251,8 @@ export function useLedger(link: LedgerLink = {}, linkKey = "") {
     reload,
     recategorise,
     add,
+    reveal,
+    remove,
     seed,
   };
 }

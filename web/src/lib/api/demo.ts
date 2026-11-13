@@ -210,6 +210,21 @@ function flowRows(flow: Flow, from?: string, to?: string): Txn[] {
 
 const sum = (rows: Txn[]) => rows.reduce((s, t) => s + t.amount, 0);
 
+/** Recompute a goal's totals and finish date from its contributions. */
+function refreshGoal(goal: DB["goals"][number]) {
+  goal.contributed = goal.contributions.reduce((s, c) => s + c.amount, 0);
+  goal.progress_pct = Math.round((goal.contributed / goal.target) * 1000) / 10;
+  goal.projected_finish = null;
+  if (goal.monthly_target) {
+    const months = Math.ceil(Math.max(goal.target - goal.contributed, 0) / goal.monthly_target);
+    const finish = new Date();
+    finish.setMonth(finish.getMonth() + months);
+    goal.projected_finish = toISO(finish);
+  }
+  persist();
+  return goal;
+}
+
 function currentPeriod() {
   return periodBounds(db().household.cycle_start_day, new Date());
 }
@@ -258,7 +273,7 @@ export const demo = {
 
   accounts: () => {
     recalc();
-    return db().accounts.map(describeAccount);
+    return db().accounts.filter((a) => !a.archived).map(describeAccount);
   },
   createAccount: (body: AccountInput) => {
     if (!body.name?.trim()) throw new Error("name: an account needs a name");
@@ -509,22 +524,86 @@ export const demo = {
   },
 
   createTransaction: (body: Record<string, unknown>) => {
+    const d = db();
+    const account = d.accounts.find((a) => a.id === body.account_id);
+    if (!account || account.archived) throw new Error("Account not found in this household");
+    const merchant = String(body.merchant ?? "").trim();
+    if (!merchant) throw new Error("merchant: say who it was with, e.g. Swiggy or Rent");
+    if (!(Number(body.amount) > 0)) throw new Error("amount: enter an amount above zero");
+    if (body.category_id && !d.categories.some((c) => c.id === body.category_id)) {
+      throw new Error("Category not found in this household");
+    }
+
+    // a known merchant or a rule files the row; anything else stays uncategorised, not guessed
+    let categoryId = (body.category_id as string) || null;
+    if (!categoryId) {
+      const rule = d.rules.find((r) => merchant.toLowerCase().includes(r.pattern.toLowerCase()));
+      const known = matchMerchant(merchant).category;
+      categoryId =
+        rule?.category_id ?? (known ? d.categories.find((c) => c.parent_id && c.name === known)?.id ?? null : null);
+    }
+
     const t: Txn = {
       id: uid(),
-      account_id: String(body.account_id),
+      account_id: account.id,
       amount: Number(body.amount),
       direction: (body.direction as "debit" | "credit") ?? "debit",
       occurred_at: String(body.occurred_at ?? todayISO()),
-      merchant: String(body.merchant ?? "Untitled"),
-      category_id: (body.category_id as string) ?? null,
+      merchant,
+      category_id: categoryId,
       note: String(body.note ?? "").trim(),
       tags: normaliseTags((body.tags as string[] | undefined) ?? []),
       source: "manual",
     };
-    db().transactions.push(t);
+    d.transactions.push(t);
     persist();
     recalc();
     return withNames(t);
+  },
+
+  /** Removing one half of a transfer removes both, so balances stay true. */
+  deleteTransactions: (ids: string[]) => {
+    const d = db();
+    const hit = d.transactions.filter((t) => ids.includes(t.id));
+    const transfers = new Set(hit.map((t) => (t as Txn & { transfer_id?: string }).transfer_id).filter(Boolean));
+    const doomed = new Set(
+      d.transactions
+        .filter((t) => ids.includes(t.id) || transfers.has((t as Txn & { transfer_id?: string }).transfer_id))
+        .map((t) => t.id),
+    );
+    if (doomed.size === 0) throw new Error("Transaction not found");
+    d.transactions = d.transactions.filter((t) => !doomed.has(t.id));
+    persist();
+    recalc();
+    return { deleted: doomed.size };
+  },
+
+  undoImport: (batchId: string) => {
+    const d = db();
+    const batch = d.batches.find((b) => b.id === batchId);
+    if (!batch) throw new Error("Import not found");
+    const before = d.transactions.length;
+    d.transactions = d.transactions.filter((t) => t.import_batch_id !== batchId);
+    d.rows = d.rows.filter((r) => r.batch_id !== batchId);
+    d.batches = d.batches.filter((b) => b.id !== batchId);
+    persist();
+    recalc();
+    return { deleted: before - d.transactions.length };
+  },
+
+  removeAccount: (id: string) => {
+    const d = db();
+    const account = d.accounts.find((a) => a.id === id);
+    if (!account) throw new Error("Account not found");
+    const used = d.transactions.filter((t) => t.account_id === id).length;
+    if (used || d.batches.some((b) => b.account_id === id)) {
+      account.archived = true;
+      persist();
+      return { result: "archived" as const, transactions: used };
+    }
+    d.accounts = d.accounts.filter((a) => a.id !== id);
+    persist();
+    return { result: "deleted" as const, transactions: 0 };
   },
 
   recategorise: (id: string, category_id: string) => demo.updateTransaction(id, { category_id }),
@@ -544,6 +623,20 @@ export const demo = {
     if (patch.note !== undefined) t.note = patch.note.trim();
     if (patch.tags !== undefined) t.tags = normaliseTags(patch.tags);
     if (patch.merchant?.trim()) t.merchant = patch.merchant.trim();
+    const edits = { amount: patch.amount, occurred_at: patch.occurred_at, direction: patch.direction };
+    if (Object.values(edits).some((v) => v !== undefined)) {
+      if ((t as Txn & { transfer_id?: string }).transfer_id) {
+        throw new Error("This is one half of a transfer; delete the transfer and record it again to change it");
+      }
+      if (edits.amount !== undefined) {
+        if (!(edits.amount > 0)) throw new Error("amount: enter an amount above zero");
+        t.amount = edits.amount;
+      }
+      if (edits.occurred_at) t.occurred_at = edits.occurred_at;
+      if (edits.direction) t.direction = edits.direction;
+      t.dedupe_hash = undefined;
+      recalc();
+    }
     persist();
     return withNames(t);
   },
@@ -732,6 +825,7 @@ export const demo = {
         confidence: row.confidence,
         needs_review: row.confidence < REVIEW_THRESHOLD,
         dedupe_hash: hash,
+        import_batch_id: batch.id,
       });
       existing.add(hash);
       row.status = "imported";
@@ -921,16 +1015,22 @@ export const demo = {
     const goal = d.goals.find((g) => g.id === goalId);
     if (!goal) throw new Error("Goal not found");
     goal.contributions.push({ amount, on: toISO(new Date()) });
-    goal.contributed = goal.contributions.reduce((s, c) => s + c.amount, 0);
-    goal.progress_pct = Math.round((goal.contributed / goal.target) * 1000) / 10;
-    if (goal.monthly_target) {
-      const months = Math.ceil(Math.max(goal.target - goal.contributed, 0) / goal.monthly_target);
-      const finish = new Date();
-      finish.setMonth(finish.getMonth() + months);
-      goal.projected_finish = toISO(finish);
-    }
+    return refreshGoal(goal);
+  },
+
+  undoContribution: (goalId: string) => {
+    const goal = db().goals.find((g) => g.id === goalId);
+    if (!goal) throw new Error("Goal not found");
+    if (goal.contributions.length === 0) throw new Error("Nothing to undo: no contributions yet");
+    goal.contributions.pop();
+    return refreshGoal(goal);
+  },
+
+  deleteGoal: (goalId: string) => {
+    const d = db();
+    if (!d.goals.some((g) => g.id === goalId)) throw new Error("Goal not found");
+    d.goals = d.goals.filter((g) => g.id !== goalId);
     persist();
-    return goal;
   },
 
   dashboard: (): Dashboard => {

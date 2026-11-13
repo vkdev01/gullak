@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db
 from ..deps import current_household_id
-from ..models import Account, Category, ImportBatch, Transaction
+from ..models import Account, Category, GoalContribution, ImportBatch, Transaction
 from ..schemas import (
     BulkCategoriseIn,
+    BulkDeleteIn,
     CountOut,
     BulkCategoriseOut,
+    DeletedOut,
     GroupRow,
     ReviewRowOut,
     SummaryOut,
@@ -100,10 +102,20 @@ def list_transactions(
 @router.post("", response_model=TransactionOut, status_code=201)
 def create_transaction(body: TransactionIn, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
     account = db.get(Account, body.account_id)
-    if not account or account.household_id != hid:
+    if not account or account.household_id != hid or account.archived:
         raise HTTPException(status_code=404, detail="Account not found in this household")
     _check_category(db, hid, body.category_id)
-    t = Transaction(household_id=hid, **body.model_dump(exclude={"tags"}), tags=tagging.encode(body.tags))
+    merchant = body.merchant.strip()
+    if not merchant:
+        raise HTTPException(status_code=422, detail="merchant: say who it was with, e.g. Swiggy or Rent")
+
+    fields = body.model_dump(exclude={"tags", "merchant"})
+    if not fields["category_id"]:
+        # a known merchant or a user rule files the row; anything else stays uncategorised, not guessed
+        guess = cat.categorise(merchant, cat.load_rules(db, hid), cat.category_lookup(db, hid))
+        if not guess.needs_review:
+            fields["category_id"] = guess.category_id
+    t = Transaction(household_id=hid, merchant=merchant, tags=tagging.encode(body.tags), **fields)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -149,9 +161,60 @@ def update_transaction(
         t.tags = tagging.encode(changes["tags"])
     if changes.get("merchant"):
         t.merchant = changes["merchant"].strip()
+
+    money_edits = {k: changes[k] for k in ("amount", "occurred_at", "direction") if changes.get(k) is not None}
+    if money_edits:
+        if t.transfer_id:
+            raise HTTPException(
+                status_code=409,
+                detail="This is one half of a transfer; delete the transfer and record it again to change it",
+            )
+        for field, value in money_edits.items():
+            setattr(t, field, value)
+        t.dedupe_hash = None  # an edited imported row no longer matches its statement line
     db.commit()
     db.refresh(t)
     return _out(t)
+
+
+def _remove(db: Session, hid: str, ids: list[str]) -> int:
+    """Delete rows, taking both halves of any transfer, and unlink goal contributions."""
+    rows = db.scalars(select(Transaction).where(Transaction.household_id == hid, Transaction.id.in_(ids))).all()
+    transfer_ids = {r.transfer_id for r in rows if r.transfer_id}
+    if transfer_ids:
+        rows = list(rows) + [
+            r
+            for r in db.scalars(
+                select(Transaction).where(Transaction.household_id == hid, Transaction.transfer_id.in_(transfer_ids))
+            )
+            if r.id not in {x.id for x in rows}
+        ]
+    doomed = [r.id for r in rows]
+    if not doomed:
+        return 0
+    for contribution in db.scalars(select(GoalContribution).where(GoalContribution.transaction_id.in_(doomed))):
+        contribution.transaction_id = None
+    for r in rows:
+        db.delete(r)
+    db.commit()
+    return len(doomed)
+
+
+@router.post("/bulk-delete", response_model=DeletedOut)
+def bulk_delete(body: BulkDeleteIn, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    deleted = _remove(db, hid, body.ids)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No matching transactions")
+    return DeletedOut(deleted=deleted)
+
+
+@router.delete("/{tx_id}", response_model=DeletedOut)
+def delete_transaction(tx_id: str, hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """Remove a row. A transfer has two halves; removing one removes both, so balances stay true."""
+    deleted = _remove(db, hid, [tx_id])
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return DeletedOut(deleted=deleted)
 
 
 @router.get("/summary", response_model=SummaryOut)

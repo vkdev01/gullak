@@ -13,6 +13,7 @@ import type {
   GroupRow,
   Household,
   MoneySummary,
+  Removed,
   Series,
   ImportBatch,
   ImportDecision,
@@ -39,6 +40,7 @@ export type {
   Household,
   MoneySummary,
   PeriodFlow,
+  Removed,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -136,6 +138,30 @@ export const api = {
     isDemoMode()
       ? Promise.resolve(demo.updateTransaction(id, body))
       : request(`/transactions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  deleteTransaction: (id: string): Promise<{ deleted: number }> =>
+    isDemoMode()
+      ? Promise.resolve(demo.deleteTransactions([id]))
+      : request(`/transactions/${id}`, { method: "DELETE" }),
+
+  deleteTransactions: (ids: string[]): Promise<{ deleted: number }> =>
+    isDemoMode()
+      ? Promise.resolve(demo.deleteTransactions(ids))
+      : request("/transactions/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  removeAccount: (id: string): Promise<Removed> =>
+    isDemoMode() ? Promise.resolve(demo.removeAccount(id)) : request(`/accounts/${id}`, { method: "DELETE" }),
+
+  undoImport: (batchId: string): Promise<{ deleted: number }> =>
+    isDemoMode() ? Promise.resolve(demo.undoImport(batchId)) : request(`/imports/${batchId}`, { method: "DELETE" }),
+
+  deleteGoal: (id: string): Promise<void> =>
+    isDemoMode() ? Promise.resolve(demo.deleteGoal(id)) : request(`/goals/${id}`, { method: "DELETE" }),
+
+  undoContribution: (goalId: string): Promise<Goal> =>
+    isDemoMode()
+      ? Promise.resolve(demo.undoContribution(goalId) as Goal)
+      : request(`/goals/${goalId}/contributions/latest`, { method: "DELETE" }),
 
   summary: (): Promise<Summary> => (isDemoMode() ? Promise.resolve(demo.summary()) : request("/transactions/summary")),
 

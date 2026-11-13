@@ -1,0 +1,35 @@
+@use 'tokens' as t;
+@use 'mixins' as m;
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(560px, calc(100vw - 24px));
+  padding: 10px 14px;
+  border-radius: t.$radius;
+  background: t.$ink;
+  color: t.$card;
+  font-size: 13px;
+  box-shadow: t.$shadow-pop;
+
+  span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+  button {
+    flex: none;
+    font-weight: 600;
+    color: t.$green-soft;
+    &:hover { text-decoration: underline; text-underline-offset: 2px; }
+  }
+
+  .close { color: t.$line; font-weight: 400; font-size: 16px; line-height: 1; }
+
+  @include m.mq(md) { bottom: 76px; }
+}
+
+.error { background: t.$clay-ink; }

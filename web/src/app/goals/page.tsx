@@ -8,7 +8,20 @@ import { money } from "@/lib/format";
 import s from "./page.module.scss";
 
 export default function GoalsPage() {
-  const { goals, create, contribute, loading, error } = useGoals();
+  const { goals, create, contribute, remove, undoLast, loading, error } = useGoals();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function run(fn: () => Promise<void>) {
+    setActionError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setConfirmId(null);
+    }
+  }
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [monthly, setMonthly] = useState("");
@@ -44,6 +57,7 @@ export default function GoalsPage() {
       </header>
 
       {error && <p className={s.error}>Could not load goals: {error}</p>}
+      {actionError && <p className={s.error}>{actionError}</p>}
 
       <section className={s.list}>
         {loading && <p className="small muted">Loading…</p>}
@@ -69,10 +83,34 @@ export default function GoalsPage() {
 
             <div className={s.actions}>
               {[100000, 500000].map((amount) => (
-                <Button key={amount} variant="ghost" size="sm" onClick={() => void contribute(goal.id, amount)}>
+                <Button
+                  key={amount}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void run(() => contribute(goal.id, amount))}
+                >
                   + {money(amount)}
                 </Button>
               ))}
+              {goal.contributed > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => void run(() => undoLast(goal.id))}>
+                  Undo last
+                </Button>
+              )}
+              {confirmId === goal.id ? (
+                <>
+                  <Button size="sm" onClick={() => void run(() => remove(goal.id))}>
+                    Yes, delete goal
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmId(null)}>
+                    Keep
+                  </Button>
+                </>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setConfirmId(goal.id)}>
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
         ))}

@@ -204,6 +204,34 @@
   }
 }
 
+/* ================= selection ================= */
+.picked, .picked:hover { background: t.$green-soft; }
+
+.rowCheck { width: 16px; height: 16px; margin: 0 3px; accent-color: t.$green; cursor: pointer; }
+
+.bulkBar {
+  @include m.card;
+  position: sticky;
+  top: 8px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  box-shadow: inset 3px 0 0 t.$green, t.$shadow;
+  font-size: 13px;
+
+  b { font-weight: 600; }
+  .grow { flex: 1; }
+
+  @include m.mq(md) { top: calc(t.$bar + 8px); }
+}
+
+.bulkPicker { width: 220px; }
+.bulkLink { color: t.$green; text-decoration: underline; text-underline-offset: 2px; font-size: 12.5px; }
+
 .tile {
   width: 22px;
   height: 22px;
@@ -641,6 +669,17 @@
 
 .saveRow { display: flex; align-items: center; gap: 10px; }
 .savedNote { font-size: 12px; color: t.$green; }
+
+.danger {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid t.$line-soft;
+  font-size: 12.5px;
+
+  > button { color: t.$clay-ink; &:hover { text-decoration: underline; text-underline-offset: 2px; } }
+  p { margin: 0 0 8px; color: t.$ink2; }
+  div { display: flex; gap: 8px; }
+}
 
 /* tags inside a ledger row: small, clickable filters */
 .rowTags {

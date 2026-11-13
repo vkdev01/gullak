@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import AccountForm from "@/components/money/AccountForm";
+import RemoveAccount from "@/components/money/RemoveAccount";
 import { useMoney } from "@/hooks/useMoney";
 import { ACCOUNT_TYPE_LABEL } from "@/lib/flows";
 import { money } from "@/lib/format";
@@ -55,17 +56,18 @@ export default function AccountsPage() {
       ) : (
         <div className={s.list}>
           {m.spending.map((a) => (
-            <Link key={a.id} href={ledgerHref({ account: a.id, when: "all" })} className={s.row}>
-              <div className={s.grow}>
+            <div key={a.id} className={s.row}>
+              <Link href={ledgerHref({ account: a.id, when: "all" })} className={s.grow}>
                 <b>{a.name}</b>
                 <span className={s.meta}>
                   {ACCOUNT_TYPE_LABEL[a.type] ?? a.type}
                   {a.institution ? ` · ${a.institution}` : ""}
                   {a.masked_number ? ` · ${a.masked_number}` : ""}
                 </span>
-              </div>
+              </Link>
               <span className={`num ${a.balance < 0 ? s.neg : ""}`}>{money(a.balance)}</span>
-            </Link>
+              <RemoveAccount account={a} onDone={() => void m.reload()} />
+            </div>
           ))}
         </div>
       )}

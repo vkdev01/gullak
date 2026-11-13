@@ -5,6 +5,7 @@ export type ParsedTransaction = {
   amount: number | null; // paise
   direction: "debit" | "credit";
   merchant: string;
+  hasName: boolean;
   date: string;
   note: string;
   tags: string[];
@@ -60,5 +61,5 @@ export function parseQuickAdd(raw: string): ParsedTransaction {
 
   merchant = merchant.replace(/\s+/g, " ").replace(/^(at|on|for)\s+/i, "").trim();
 
-  return { amount, direction, merchant: merchant || "Untitled", date, note, tags, raw: raw.trim() };
+  return { amount, direction, merchant: merchant || "Untitled", hasName: merchant.length > 0, date, note, tags, raw: raw.trim() };
 }

@@ -21,9 +21,10 @@ export function useQuickAdd(onSubmit: (parsed: QuickAddInput) => Promise<void>) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const parsed = useMemo(() => parseQuickAdd(draft), [draft]);
+  const ready = Boolean(parsed.amount) && parsed.hasName;
 
   async function submit() {
-    if (!parsed.amount) return;
+    if (!ready || !parsed.amount || submitting) return;
     setSubmitting(true);
     try {
       await onSubmit({
@@ -53,6 +54,6 @@ export function useQuickAdd(onSubmit: (parsed: QuickAddInput) => Promise<void>) 
     submit,
     submitting,
     error,
-    ready: Boolean(parsed.amount),
+    ready,
   };
 }
