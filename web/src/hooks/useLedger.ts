@@ -1,45 +1,85 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Count, type Summary, type Txn } from "@/lib/api";
 import { monthKey, monthRange, shiftMonth, todayISO } from "@/lib/format";
+import type { LedgerLink } from "@/lib/links";
 
 export type LedgerView = "all" | "review" | "uncategorised";
-export type LedgerFilters = { accountId: string; query: string; view: LedgerView };
+export type LedgerFilters = {
+  accountId: string;
+  categoryId: string;
+  direction: "" | "debit" | "credit";
+  excludeTransfers: boolean;
+  query: string;
+  view: LedgerView;
+};
+export type DateRange = { start: string; end: string };
 
 export const PAGE_SIZE = 50;
 const THIS_MONTH = monthKey(todayISO());
 
+function filtersFrom(link: LedgerLink): LedgerFilters {
+  return {
+    accountId: link.account ?? "",
+    categoryId: link.category ?? "",
+    direction: link.direction ?? "",
+    excludeTransfers: link.transfers === "exclude",
+    query: link.q ?? "",
+    view: link.view ?? "all",
+  };
+}
+
+function rangeFrom(link: LedgerLink): DateRange | null {
+  if (!link.from && !link.to) return null;
+  return { start: link.from ?? link.to!, end: link.to ?? link.from! };
+}
+
 /**
- * The ledger is a window, not a scroll: one month at a time, fifty rows a page.
- * Month and page live here so the list, the period band and the pagination
- * footer cannot disagree about what is on screen.
+ * The ledger is a window, not a scroll: one month (or a linked date range) at a
+ * time, fifty rows a page. Window and page live here so the list, the period
+ * band and the pagination footer cannot disagree about what is on screen.
  */
-export function useLedger() {
+export function useLedger(link: LedgerLink = {}, linkKey = "") {
   const [transactions, setTransactions] = useState<Txn[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [totals, setTotals] = useState<Count>({ count: 0, out: 0, income: 0, net: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filters, setFiltersState] = useState<LedgerFilters>({ accountId: "", query: "", view: "all" });
+  const [filters, setFiltersState] = useState<LedgerFilters>(() => filtersFrom(link));
+  const [range, setRange] = useState<DateRange | null>(() => rangeFrom(link));
   const [month, setMonthState] = useState<string>(THIS_MONTH);
-  const [allTime, setAllTime] = useState(false);
+  const [allTime, setAllTime] = useState(() => link.when === "all" && !rangeFrom(link));
   const [page, setPage] = useState(0);
+
+  // A new link while already on the page (command palette, back button) replaces the window.
+  const appliedKey = useRef(linkKey);
+  useEffect(() => {
+    if (appliedKey.current === linkKey) return;
+    appliedKey.current = linkKey;
+    setFiltersState(filtersFrom(link));
+    setRange(rangeFrom(link));
+    setAllTime(link.when === "all" && !rangeFrom(link));
+    setPage(0);
+  }, [link, linkKey]);
 
   const paramsFor = useCallback(
     (withPaging = true) => {
-      const range = allTime ? null : monthRange(month);
+      const span = range ?? (allTime ? null : monthRange(month));
       return {
         ...(withPaging ? { limit: PAGE_SIZE, offset: page * PAGE_SIZE } : {}),
-        ...(range ? { start: range.start, end: range.end } : {}),
+        ...(span ? { start: span.start, end: span.end } : {}),
         ...(filters.accountId ? { account_id: filters.accountId } : {}),
+        ...(filters.categoryId ? { category_id: filters.categoryId } : {}),
+        ...(filters.direction ? { direction: filters.direction } : {}),
+        ...(filters.excludeTransfers ? { exclude_transfers: true } : {}),
         ...(filters.query.trim() ? { q: filters.query.trim() } : {}),
         ...(filters.view === "review" ? { needs_review: true } : {}),
         ...(filters.view === "uncategorised" ? { uncategorised: true } : {}),
       };
     },
-    [allTime, month, page, filters],
+    [range, allTime, month, page, filters],
   );
 
   const reload = useCallback(async () => {
@@ -73,12 +113,19 @@ export function useLedger() {
 
   const setMonth = useCallback((next: string) => {
     setMonthState(next);
+    setRange(null);
     setAllTime(false);
     setPage(0);
   }, []);
 
   const showAllTime = useCallback(() => {
+    setRange(null);
     setAllTime((prev) => !prev);
+    setPage(0);
+  }, []);
+
+  const clearRange = useCallback(() => {
+    setRange(null);
     setPage(0);
   }, []);
 
@@ -138,10 +185,13 @@ export function useLedger() {
     setFilters,
     month,
     allTime,
+    range,
+    clearRange,
     setMonth,
     showAllTime,
-    stepMonth: (delta: number) => setMonth(shiftMonth(month, delta)),
-    isCurrentMonth: month === THIS_MONTH && !allTime,
+    stepMonth: (delta: number) => setMonth(shiftMonth(range ? monthKey(range.start) : month, delta)),
+    goToThisMonth: () => setMonth(THIS_MONTH),
+    isCurrentMonth: month === THIS_MONTH && !allTime && !range,
     page,
     pageCount,
     pageSize: PAGE_SIZE,

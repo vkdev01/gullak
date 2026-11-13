@@ -33,6 +33,7 @@ export type {
   ImportDecision,
   ImportPreview,
   ImportRow,
+  Insight,
   ReviewRow,
   Rule,
   Series,
@@ -165,7 +166,7 @@ export const api = {
 
   group: (by: "category" | "day" | "merchant", start?: string, end?: string): Promise<GroupRow[]> =>
     isDemoMode()
-      ? Promise.resolve([])
+      ? Promise.resolve(demo.group(by, start, end))
       : request(`/transactions/group?by=${by}${start ? `&start=${start}` : ""}${end ? `&end=${end}` : ""}`),
 };
 

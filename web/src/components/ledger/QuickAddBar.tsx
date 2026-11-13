@@ -20,11 +20,13 @@ export default function QuickAddBar({ onAdd }: Props) {
       }}
     >
       <input
+        id="quick-add"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         placeholder="Add a transaction — try “320 swiggy yesterday”"
         aria-label="Quick add a transaction"
       />
+      <kbd className={s.kbd}>N</kbd>
       <Button type="submit" size="sm" disabled={!ready || submitting}>
         {submitting ? "Adding…" : "Add"}
       </Button>

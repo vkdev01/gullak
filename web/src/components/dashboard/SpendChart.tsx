@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { money, shortDate, toISODate } from "@/lib/format";
+import { ledgerHref, spendLink } from "@/lib/links";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
 
@@ -16,8 +19,11 @@ function scaleFor(amounts: number[]): number {
 }
 
 export default function SpendChart({ data }: { data: Dashboard }) {
+  const router = useRouter();
   const points = data.sparkline;
   if (points.length === 0) return null;
+
+  const dayHref = (date: string) => ledgerHref(spendLink(date, date));
 
   const today = toISODate(new Date());
   const past = points.filter((p) => p.date <= today);
@@ -44,9 +50,11 @@ export default function SpendChart({ data }: { data: Dashboard }) {
           const clipped = p.amount > scale;
           const h = clipped ? HEIGHT : Math.max((p.amount / scale) * (HEIGHT - 2), 0.6);
           return (
-            <rect key={p.date} x={i + 0.15} width={0.7} y={HEIGHT - h} height={h} className={clipped ? s.barClipped : s.barDay}>
-              <title>{`${shortDate(p.date)} · ${money(p.amount)}`}</title>
-            </rect>
+            <g key={p.date} className={s.barHit} onClick={() => router.push(dayHref(p.date))}>
+              <rect x={i} width={1} y={0} height={HEIGHT} className={s.barHitArea} />
+              <rect x={i + 0.15} width={0.7} y={HEIGHT - h} height={h} className={clipped ? s.barClipped : s.barDay} />
+              <title>{`${shortDate(p.date)} · ${money(p.amount)} — click for the rows`}</title>
+            </g>
           );
         })}
       </svg>
@@ -61,9 +69,11 @@ export default function SpendChart({ data }: { data: Dashboard }) {
         <p className={s.chartNote}>
           Off the scale:{" "}
           {offScale.map((p, i) => (
-            <span key={p.date} className="num">
+            <span key={p.date}>
               {i > 0 && " · "}
-              {shortDate(p.date)} {money(p.amount)}
+              <Link href={dayHref(p.date)} className="num">
+                {shortDate(p.date)} {money(p.amount)}
+              </Link>
             </span>
           ))}
         </p>

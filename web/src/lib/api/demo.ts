@@ -17,6 +17,7 @@ import type {
   Category,
   Dashboard,
   Goal,
+  GroupRow,
   ImportBatch,
   ImportDecision,
   ImportPreview,
@@ -209,6 +210,7 @@ export const demo = {
   transactions: (params: Record<string, string | number | boolean> = {}) => {
     const d = db();
     let rows = [...d.transactions];
+    if (params.exclude_transfers) rows = rows.filter((t) => !(t as Txn & { transfer_id?: string }).transfer_id);
     if (params.account_id) rows = rows.filter((t) => t.account_id === params.account_id);
     if (params.category_id) rows = rows.filter((t) => t.category_id === params.category_id);
     if (params.direction) rows = rows.filter((t) => t.direction === params.direction);
@@ -236,6 +238,22 @@ export const demo = {
     const out = rows.filter((t) => t.direction === "debit").reduce((sum, t) => sum + t.amount, 0);
     const income = rows.filter((t) => t.direction === "credit").reduce((sum, t) => sum + t.amount, 0);
     return { count: rows.length, out, income, net: income - out };
+  },
+
+  /** Same contract as GET /transactions/group: debits only, transfers excluded. */
+  group: (by: "category" | "day" | "merchant", start?: string, end?: string): GroupRow[] => {
+    const buckets = new Map<string, GroupRow>();
+    for (const t of db().transactions) {
+      if (t.direction !== "debit" || (t as Txn & { transfer_id?: string }).transfer_id) continue;
+      if ((start && t.occurred_at < start) || (end && t.occurred_at > end)) continue;
+      const key = by === "category" ? t.category_id ?? "uncategorised" : by === "merchant" ? t.merchant : t.occurred_at;
+      const label = by === "category" ? catName(t.category_id) ?? "Uncategorised" : key;
+      const bucket = buckets.get(key) ?? { key, label, total: 0, count: 0 };
+      bucket.total += t.amount;
+      bucket.count += 1;
+      buckets.set(key, bucket);
+    }
+    return [...buckets.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
   },
 
   transaction: (id: string) => {

@@ -170,6 +170,33 @@ def test_transfers_are_not_spending(household):
     assert c.get("/dashboard", headers=headers).json()["spent"] == 0
 
 
+def test_dashboard_spent_opens_to_the_same_rows(household):
+    """MVP 2 exit test: the hero's spent figure drills into rows that add up to it."""
+    c, headers, account_id = household
+    card = c.post("/accounts", headers=headers, json={"name": "Credit Card", "type": "credit_card"}).json()
+    today = date.today().isoformat()
+    _tx(c, headers, account_id, 120_000, today, "Swiggy")
+    _tx(c, headers, account_id, 80_000, today, "Uber")
+    c.post(
+        "/transfers",
+        headers=headers,
+        json={"from_account_id": account_id, "to_account_id": card["id"], "amount": 500_000, "occurred_at": today},
+    )
+
+    d = c.get("/dashboard", headers=headers).json()
+    params = {
+        "direction": "debit",
+        "exclude_transfers": "true",
+        "start": d["period_start"],
+        "end": d["period_end"],
+    }
+    counted = c.get("/transactions/count", headers=headers, params=params).json()
+    rows = c.get("/transactions", headers=headers, params=params).json()
+
+    assert counted["out"] == d["spent"] == 200_000
+    assert sum(r["amount"] for r in rows) == d["spent"]
+
+
 # --------------------------------------------------------------- dashboard
 
 def test_free_to_spend_identity(household):

@@ -8,8 +8,11 @@ import DueSoon from "@/components/dashboard/DueSoon";
 import GoalsRail from "@/components/dashboard/GoalsRail";
 import HeroCard from "@/components/dashboard/HeroCard";
 import InsightList from "@/components/dashboard/InsightList";
+import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import SpendChart from "@/components/dashboard/SpendChart";
+import WhereItWent from "@/components/dashboard/WhereItWent";
 import Button from "@/components/ui/Button";
+import d from "@/components/dashboard/dashboard.module.scss";
 import s from "./page.module.scss";
 
 export default function DashboardPage() {
@@ -50,8 +53,18 @@ export default function DashboardPage() {
 
   if (loading || !dashboard) {
     return (
-      <main className={s.page}>
-        <p className="small muted">Loading your period…</p>
+      <main className={s.page} aria-busy="true">
+        <div className={s.topline}>
+          <div>
+            <h1 className={s.title}>Dashboard</h1>
+            <p className={s.sub}>Loading your period…</p>
+          </div>
+        </div>
+        <div className={s.grid} aria-hidden="true">
+          <div className={`${s.span12} ${d.skeleton}`} style={{ height: 196 }} />
+          <div className={`${s.span8} ${d.skeleton}`} style={{ height: 230 }} />
+          <div className={`${s.span4} ${d.skeleton}`} style={{ height: 230 }} />
+        </div>
       </main>
     );
   }
@@ -86,6 +99,8 @@ export default function DashboardPage() {
         </p>
       )}
 
+      <SetupChecklist data={dashboard} />
+
       <div className={s.grid}>
         <div className={s.span12}>
           <HeroCard data={dashboard} />
@@ -97,6 +112,10 @@ export default function DashboardPage() {
         <div className={`${s.span4} ${s.stack}`}>
           <GoalsRail data={dashboard} />
           <DueSoon data={dashboard} />
+        </div>
+
+        <div className={s.span12}>
+          <WhereItWent data={dashboard} />
         </div>
 
         <div className={s.span12}>

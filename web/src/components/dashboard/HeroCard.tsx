@@ -1,8 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { money } from "@/lib/format";
+import { ledgerHref, spendLink } from "@/lib/links";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
+
+type Line = { label: string; value: number; href?: string; first?: boolean };
 
 export default function HeroCard({ data }: { data: Dashboard }) {
   // The API plans against last period's income until salary lands, so rebuild that base from the identity.
@@ -12,11 +16,17 @@ export default function HeroCard({ data }: { data: Dashboard }) {
   const elapsed = Math.min(data.elapsed_pct, 100);
   const ahead = spentPct > elapsed + 5;
 
-  const lines: [string, number][] = [
-    [planned ? "Expected income" : "Income", base],
-    ["Spent so far", -data.spent],
-    ["Bills still due", -data.committed],
-    ["Left in budgets", -data.budgeted_remaining],
+  const period = { from: data.period_start, to: data.period_end };
+  const lines: Line[] = [
+    {
+      label: planned ? "Expected income" : "Income",
+      value: base,
+      first: true,
+      href: planned ? undefined : ledgerHref({ direction: "credit", transfers: "exclude", ...period }),
+    },
+    { label: "Spent so far", value: -data.spent, href: ledgerHref(spendLink(period.from, period.to)) },
+    { label: "Bills still due", value: -data.committed, href: data.committed ? "#due" : undefined },
+    { label: "Left in budgets", value: -data.budgeted_remaining, href: data.budgeted_remaining ? "/budgets/" : undefined },
   ];
 
   return (
@@ -41,12 +51,23 @@ export default function HeroCard({ data }: { data: Dashboard }) {
       </div>
 
       <dl className={s.calc} aria-label="How free to spend is calculated">
-        {lines.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd className="num">{value === 0 && label !== lines[0][0] ? "—" : money(value)}</dd>
-          </div>
-        ))}
+        {lines.map(({ label, value, href, first }) => {
+          const figure = value === 0 && !first ? "—" : money(value);
+          return (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd className="num">
+                {href ? (
+                  <Link href={href} className={s.calcLink} title={`Open the rows behind ${label.toLowerCase()}`}>
+                    {figure}
+                  </Link>
+                ) : (
+                  figure
+                )}
+              </dd>
+            </div>
+          );
+        })}
         <div className={s.calcTotal}>
           <dt>Free to spend</dt>
           <dd className="num">{money(data.free_to_spend)}</dd>

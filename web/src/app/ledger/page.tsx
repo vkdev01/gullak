@@ -1,29 +1,78 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { isDemoMode } from "@/lib/api";
-import { money, monthLabelFromKey } from "@/lib/format";
+import { money, monthLabelFromKey, shortDate } from "@/lib/format";
+import { parseLedgerLink } from "@/lib/links";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
+import { useHotkeys } from "@/hooks/useHotkeys";
 import { useLedger } from "@/hooks/useLedger";
 import LedgerList from "@/components/ledger/LedgerList";
 import LedgerToolbar from "@/components/ledger/LedgerToolbar";
 import Pagination from "@/components/ledger/Pagination";
 import PeriodNav from "@/components/ledger/PeriodNav";
+import ShortcutsHelp from "@/components/ledger/ShortcutsHelp";
 import TransactionDrawer from "@/components/ledger/TransactionDrawer";
 import QuickAddBar from "@/components/ledger/QuickAddBar";
 import Button from "@/components/ui/Button";
 import s from "./page.module.scss";
 
-export default function LedgerPage() {
+function focusRow(delta: number) {
+  const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-ledger-row]"));
+  if (rows.length === 0) return;
+  const at = rows.indexOf(document.activeElement as HTMLElement);
+  const next = at < 0 ? (delta > 0 ? 0 : rows.length - 1) : Math.min(Math.max(at + delta, 0), rows.length - 1);
+  rows[next].focus();
+  rows[next].scrollIntoView({ block: "nearest" });
+}
+
+const focusInput = (id: string) => document.getElementById(id)?.focus();
+
+// useSearchParams needs a Suspense boundary for the static export.
+export default function LedgerRoute() {
+  return (
+    <Suspense fallback={null}>
+      <LedgerPage />
+    </Suspense>
+  );
+}
+
+function LedgerPage() {
+  const params = useSearchParams();
+  const linkKey = params.toString();
+  const link = useMemo(() => parseLedgerLink(new URLSearchParams(linkKey)), [linkKey]);
+
   const { accounts } = useAccounts();
   const { categories } = useCategories();
-  const ledger = useLedger();
+  const ledger = useLedger(link, linkKey);
   const [seeding, setSeeding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [help, setHelp] = useState(false);
 
   const reviewCount = useMemo(() => ledger.transactions.filter((t) => t.needs_review).length, [ledger.transactions]);
+
+  useEffect(() => {
+    if (params.get("add")) focusInput("quick-add");
+  }, [params]);
+
+  useHotkeys(
+    {
+      j: () => focusRow(1),
+      k: () => focusRow(-1),
+      ArrowDown: () => focusRow(1),
+      ArrowUp: () => focusRow(-1),
+      "/": () => focusInput("ledger-search"),
+      n: () => focusInput("quick-add"),
+      "[": () => ledger.stepMonth(-1),
+      "]": () => !ledger.isCurrentMonth && ledger.stepMonth(1),
+      "?": () => setHelp((v) => !v),
+      Escape: () => setHelp(false),
+    },
+    !openId,
+  );
 
   async function seed() {
     setSeeding(true);
@@ -45,7 +94,13 @@ export default function LedgerPage() {
     );
   }
 
-  const periodLabel = ledger.allTime ? "All time" : monthLabelFromKey(ledger.month);
+  const periodLabel = ledger.range
+    ? ledger.range.start === ledger.range.end
+      ? shortDate(ledger.range.start)
+      : `${shortDate(ledger.range.start)} – ${shortDate(ledger.range.end)}`
+    : ledger.allTime
+      ? "All time"
+      : monthLabelFromKey(ledger.month);
 
   return (
     <main className={s.page}>
@@ -57,6 +112,9 @@ export default function LedgerPage() {
           </p>
         </div>
         <div className={s.actions}>
+          <Button variant="ghost" size="sm" onClick={() => setHelp((v) => !v)} aria-expanded={help}>
+            Shortcuts <kbd>?</kbd>
+          </Button>
           <Link href="/import/">
             <Button variant="ghost" size="sm">
               Import a statement
@@ -64,6 +122,8 @@ export default function LedgerPage() {
           </Link>
         </div>
       </header>
+
+      {help && <ShortcutsHelp onClose={() => setHelp(false)} />}
 
       <section className={s.period}>
         <div className={s.periodMain}>
@@ -94,6 +154,7 @@ export default function LedgerPage() {
 
       <LedgerToolbar
         accounts={accounts}
+        categories={categories}
         filters={ledger.filters}
         reviewCount={reviewCount}
         onFiltersChange={ledger.setFilters}
@@ -104,10 +165,12 @@ export default function LedgerPage() {
       <PeriodNav
         month={ledger.month}
         allTime={ledger.allTime}
+        range={ledger.range}
         isCurrentMonth={ledger.isCurrentMonth}
         onStep={ledger.stepMonth}
-        onThisMonth={() => ledger.setMonth(ledger.month)}
+        onThisMonth={ledger.goToThisMonth}
         onToggleAllTime={ledger.showAllTime}
+        onClearRange={ledger.clearRange}
       />
 
       <LedgerList
