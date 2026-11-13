@@ -50,6 +50,13 @@ class Account(Base):
     opening_balance: Mapped[int] = mapped_column(BigInteger, default=0)  # paise
     currency: Mapped[str] = mapped_column(String(3), default="INR")
     archived: Mapped[bool] = mapped_column(default=False)
+    # savings and investments (see services/flows.py for the account types)
+    description: Mapped[str] = mapped_column(Text, default="")
+    interest_rate: Mapped[float | None] = mapped_column(nullable=True)  # % a year
+    maturity_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    monthly_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # planned paise per period
+    current_value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # market value, when known
+    value_as_of: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

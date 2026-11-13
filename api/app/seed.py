@@ -15,8 +15,12 @@ DEFAULT_CATS = {
     "Loans & EMIs": ["Vehicle loan", "Home loan", "Personal loan"],
     "Money": ["Fees", "Interest", "Insurance"],
     "Other": ["Miscellaneous", "Gifts", "Education", "Personal care"],
-    "Income": ["Salary", "Freelance", "Refund"],
+    "Savings & investments": [
+        "Mutual funds / SIP", "Stocks", "Fixed deposit", "Recurring deposit", "PPF", "EPF / VPF", "NPS", "Gold",
+    ],
+    "Income": ["Salary", "Bonus", "Freelance", "Interest earned", "Dividends", "Rental income", "Refund"],
 }
+KINDS = {"Income": "income", "Savings & investments": "saving"}
 COLOURS = ["green", "clay", "butter"]
 
 MERCHANTS = [
@@ -33,15 +37,24 @@ MERCHANTS = [
 ]
 
 
-def seed_categories(db: Session, household_id: str) -> None:
+def seed_categories(db: Session, household_id: str) -> int:
+    """Create any default category the household is missing, matched by name. Safe to run again."""
+    existing = db.query(Category).filter(Category.household_id == household_id).all()
+    created = 0
     for i, (parent, kids) in enumerate(DEFAULT_CATS.items()):
-        p = Category(household_id=household_id, name=parent, kind="income" if parent == "Income" else "expense",
-                     colour=COLOURS[i % 3])
-        db.add(p)
-        db.flush()
+        p = next((c for c in existing if c.parent_id is None and c.name.lower() == parent.lower()), None)
+        if p is None:
+            p = Category(household_id=household_id, name=parent, kind=KINDS.get(parent, "expense"), colour=COLOURS[i % 3])
+            db.add(p)
+            db.flush()
+            created += 1
+        names = {c.name.lower() for c in existing if c.parent_id == p.id}
         for k in kids:
-            db.add(Category(household_id=household_id, parent_id=p.id, name=k, kind=p.kind, colour=p.colour))
+            if k.lower() not in names:
+                db.add(Category(household_id=household_id, parent_id=p.id, name=k, kind=p.kind, colour=p.colour))
+                created += 1
     db.flush()
+    return created
 
 
 def seed_demo(db: Session, household_id: str, days: int = 180) -> int:

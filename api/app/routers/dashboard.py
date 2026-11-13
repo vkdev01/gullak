@@ -33,6 +33,8 @@ def dashboard(hid: str = Depends(current_household_id), db: Session = Depends(ge
         elapsed_pct=result.elapsed_pct,
         income=result.income,
         spent=result.spent,
+        invested=result.invested,
+        savings_due=result.savings_due,
         committed=result.committed,
         budgeted_remaining=result.budgeted_remaining,
         free_to_spend=result.free_to_spend,

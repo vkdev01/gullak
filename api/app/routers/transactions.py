@@ -23,6 +23,7 @@ from ..schemas import (
     TransferOut,
 )
 from ..services import categorise as cat
+from ..services import flows
 from ..services import tags as tagging
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -40,8 +41,10 @@ def _out(t: Transaction) -> TransactionOut:
     )
 
 
-def _search(stmt, q: str | None, tag: str | None):
+def _search(stmt, q: str | None, tag: str | None, flow: str | None = None):
     """Search reads the merchant, the note and the tags, so a described row can be found."""
+    if flow:
+        stmt = stmt.where(flows.condition(flow))
     if q:
         like = f"%{q}%"
         stmt = stmt.where(or_(Transaction.merchant.ilike(like), Transaction.note.ilike(like), Transaction.tags.ilike(like)))
@@ -61,6 +64,7 @@ def list_transactions(
     uncategorised: bool | None = None,
     q: str | None = None,
     tag: str | None = None,
+    flow: str | None = Query(None, pattern="^(spend|income|invest|withdraw)$"),
     start: date | None = None,
     end: date | None = None,
     exclude_transfers: bool = False,
@@ -84,7 +88,7 @@ def list_transactions(
         stmt = stmt.where(Transaction.needs_review.is_(True))
     if uncategorised:
         stmt = stmt.where(Transaction.category_id.is_(None))
-    stmt = _search(stmt, q, tag)
+    stmt = _search(stmt, q, tag, flow)
     if start:
         stmt = stmt.where(Transaction.occurred_at >= start)
     if end:
@@ -153,18 +157,18 @@ def update_transaction(
 @router.get("/summary", response_model=SummaryOut)
 def summary(hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
     month = date.today().replace(day=1)
-    rows = db.execute(
-        select(Transaction.direction, func.coalesce(func.sum(Transaction.amount), 0), func.count())
-        .where(
-            Transaction.household_id == hid,
-            Transaction.occurred_at >= month,
-            Transaction.transfer_id.is_(None),
-        )
-        .group_by(Transaction.direction)
-    ).all()
-    spent = sum(amt for d, amt, _ in rows if d == "debit")
-    income = sum(amt for d, amt, _ in rows if d == "credit")
-    count = sum(c for _, _, c in rows)
+
+    def total(flow: str) -> int:
+        return int(db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                Transaction.household_id == hid, Transaction.occurred_at >= month, flows.condition(flow)
+            )
+        ) or 0)
+
+    count = db.scalar(
+        select(func.count()).where(Transaction.household_id == hid, Transaction.occurred_at >= month)
+    ) or 0
+    spent, income = total("spend"), total("income")
     return SummaryOut(spent=spent, income=income, net=income - spent, count=count)
 
 
@@ -218,20 +222,17 @@ def bulk_categorise(body: BulkCategoriseIn, hid: str = Depends(current_household
 @router.get("/group", response_model=list[GroupRow])
 def group_transactions(
     by: str = Query("category", pattern="^(category|day|merchant)$"),
+    flow: str = Query("spend", pattern="^(spend|income|invest|withdraw)$"),
     start: date | None = None,
     end: date | None = None,
     hid: str = Depends(current_household_id),
     db: Session = Depends(get_db),
 ):
-    """Spend grouped for charts. Transfers are excluded — moving money is not spending."""
+    """Rows grouped for charts, by flow: spending by default, or income, investing, withdrawals."""
     stmt = (
         select(Transaction)
         .options(joinedload(Transaction.category))
-        .where(
-            Transaction.household_id == hid,
-            Transaction.direction == "debit",
-            Transaction.transfer_id.is_(None),
-        )
+        .where(Transaction.household_id == hid, flows.condition(flow))
     )
     if start:
         stmt = stmt.where(Transaction.occurred_at >= start)
@@ -311,6 +312,7 @@ def count_transactions(
     uncategorised: bool | None = None,
     q: str | None = None,
     tag: str | None = None,
+    flow: str | None = Query(None, pattern="^(spend|income|invest|withdraw)$"),
     start: date | None = None,
     end: date | None = None,
     exclude_transfers: bool = False,
@@ -329,7 +331,7 @@ def count_transactions(
         stmt = stmt.where(Transaction.needs_review.is_(True))
     if uncategorised:
         stmt = stmt.where(Transaction.category_id.is_(None))
-    stmt = _search(stmt, q, tag)
+    stmt = _search(stmt, q, tag, flow)
     if start:
         stmt = stmt.where(Transaction.occurred_at >= start)
     if end:

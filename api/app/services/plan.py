@@ -11,10 +11,11 @@ import statistics
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import Budget, Category, Goal, GoalContribution, Transaction
+from ..models import Account, Budget, Category, Goal, GoalContribution, Transaction
+from . import flows
 from .periods import elapsed_fraction, period_bounds, period_label, previous_period
 
 
@@ -65,6 +66,8 @@ class Dashboard:
     elapsed_pct: float
     income: int
     spent: int
+    invested: int
+    savings_due: int
     committed: int
     budgeted_remaining: int
     free_to_spend: int
@@ -76,18 +79,55 @@ class Dashboard:
 
 
 def spend_rows(db: Session, household_id: str, start: date, end: date) -> list[Transaction]:
-    """Debits inside a window, transfers excluded — moving money is not spending."""
+    """Spending inside a window: no transfers, nothing saved or invested (services/flows.py)."""
     return list(
         db.scalars(
             select(Transaction).where(
                 Transaction.household_id == household_id,
-                Transaction.direction == "debit",
-                Transaction.transfer_id.is_(None),
+                flows.condition("spend"),
                 Transaction.occurred_at >= start,
                 Transaction.occurred_at <= end,
             )
         )
     )
+
+
+def flow_total(db: Session, household_id: str, flow: str, start: date, end: date) -> int:
+    return int(
+        db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                Transaction.household_id == household_id,
+                flows.condition(flow),
+                Transaction.occurred_at >= start,
+                Transaction.occurred_at <= end,
+            )
+        )
+        or 0
+    )
+
+
+def savings_due(db: Session, household_id: str, start: date, end: date) -> int:
+    """Planned monthly contributions (RD, SIP, PPF) not yet made this period."""
+    due = 0
+    accounts = db.scalars(
+        select(Account).where(
+            Account.household_id == household_id,
+            Account.archived.is_(False),
+            Account.type.in_(flows.INVESTMENT_TYPES),
+            Account.monthly_amount > 0,
+        )
+    )
+    for account in accounts:
+        paid = db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                Transaction.account_id == account.id,
+                Transaction.direction == "credit",
+                Transaction.occurred_at >= start,
+                Transaction.occurred_at <= end,
+            )
+        ) or 0
+        due += max(account.monthly_amount - int(paid), 0)
+    return due
 
 
 def _budget_spent(scope: set[str] | None, rows: list[Transaction], start: date, end: date) -> int:
@@ -412,41 +452,20 @@ def build_dashboard(db: Session, household_id: str, anchor: int, today: date, se
         if r.occurred_at <= prev_start + timedelta(days=elapsed_days)
     ]
 
-    income = sum(
-        t.amount
-        for t in db.scalars(
-            select(Transaction).where(
-                Transaction.household_id == household_id,
-                Transaction.direction == "credit",
-                Transaction.transfer_id.is_(None),
-                Transaction.occurred_at >= start,
-                Transaction.occurred_at <= end,
-            )
-        )
-    )
+    income = flow_total(db, household_id, "income", start, end)
+    invested = flow_total(db, household_id, "invest", start, end)
     spent = sum(r.amount for r in rows)
     budgets = budget_statuses(db, household_id, anchor, today)
     budgeted_remaining = reserved_by_budgets(budgets)
     committed = committed_for_period(db, household_id, series, start, end)
+    planned_savings = savings_due(db, household_id, start, end)
 
     # If income has not landed yet, plan against last period's income rather than zero.
-    expected_income = income
-    if income == 0:
-        expected_income = sum(
-            t.amount
-            for t in db.scalars(
-                select(Transaction).where(
-                    Transaction.household_id == household_id,
-                    Transaction.direction == "credit",
-                    Transaction.transfer_id.is_(None),
-                    Transaction.occurred_at >= prev_start,
-                    Transaction.occurred_at <= prev_end,
-                )
-            )
-        )
+    expected_income = income or flow_total(db, household_id, "income", prev_start, prev_end)
 
     # Spent covers budgeted and unbudgeted categories; budgeted_remaining is only what is still reserved.
-    free = expected_income - spent - committed - budgeted_remaining
+    # Money invested this period, or promised to an RD/SIP, is not free to spend either.
+    free = expected_income - spent - invested - committed - planned_savings - budgeted_remaining
     due_soon = [s for s in series if start <= s["next_due"] <= end][:5]
 
     return Dashboard(
@@ -457,6 +476,8 @@ def build_dashboard(db: Session, household_id: str, anchor: int, today: date, se
         elapsed_pct=round(elapsed_fraction(start, end, today) * 100, 1),
         income=income,
         spent=spent,
+        invested=invested,
+        savings_due=planned_savings,
         committed=committed,
         budgeted_remaining=budgeted_remaining,
         free_to_spend=free,
