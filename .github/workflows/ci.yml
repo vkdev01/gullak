@@ -21,6 +21,10 @@ jobs:
         working-directory: web
         run: npm ci || npm install
 
+      - name: Typecheck
+        working-directory: web
+        run: npm run typecheck
+
       - name: Demo store smoke test
         working-directory: web
         run: npm run check:demo
