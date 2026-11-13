@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..deps import current_household_id
 from ..models import Budget, Category, Household
-from ..schemas import BudgetIn, BudgetOut, BudgetPatch, BudgetStatusOut
+from ..schemas import BudgetIn, BudgetOut, BudgetPatch, BudgetStatusOut, BudgetSuggestionOut
 from ..services import plan
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
@@ -16,11 +16,12 @@ router = APIRouter(prefix="/budgets", tags=["budgets"])
 def _out(budget: Budget, category_name: str | None) -> BudgetOut:
     return BudgetOut(
         id=budget.id,
-        name=budget.name or category_name or "Envelope",
+        name=budget.name or category_name or "Overall",
         category_id=budget.category_id,
         period=budget.period,
         amount=budget.amount,
         rollover=budget.rollover,
+        fixed=budget.fixed,
         is_active=budget.is_active,
     )
 
@@ -43,6 +44,21 @@ def create_budget(body: BudgetIn, hid: str = Depends(current_household_id), db: 
         category = db.get(Category, body.category_id)
         if not category or category.household_id != hid:
             raise HTTPException(status_code=404, detail="Category not found in this household")
+        if category.kind != "expense":
+            raise HTTPException(status_code=422, detail="Budgets cap spending; income categories cannot have one")
+
+    clash = db.scalars(
+        select(Budget).where(
+            Budget.household_id == hid,
+            Budget.is_active.is_(True),
+            Budget.category_id.is_(None) if body.category_id is None else Budget.category_id == body.category_id,
+        )
+    ).first()
+    if clash:
+        raise HTTPException(
+            status_code=409,
+            detail="There is already a budget for this " + ("category" if body.category_id else "household") + "; change its amount instead",
+        )
 
     budget = Budget(
         household_id=hid,
@@ -51,6 +67,7 @@ def create_budget(body: BudgetIn, hid: str = Depends(current_household_id), db: 
         period=body.period,
         amount=body.amount,
         rollover=body.rollover,
+        fixed=body.fixed,
         created_on=date.today(),
     )
     db.add(budget)
@@ -96,3 +113,9 @@ def budget_status(hid: str = Depends(current_household_id), db: Session = Depend
         BudgetStatusOut(**vars(status))
         for status in plan.budget_statuses(db, hid, anchor, date.today())
     ]
+
+
+@router.get("/suggestions", response_model=list[BudgetSuggestionOut])
+def budget_suggestions(hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+    """What each category has actually cost per period lately, as a starting amount."""
+    return [BudgetSuggestionOut(**row) for row in plan.budget_suggestions(db, hid, _anchor(db, hid), date.today())]

@@ -11,7 +11,7 @@ import pytest
 from app.db import SessionLocal
 from app.models import Budget, Transaction
 from app.services.periods import elapsed_fraction, period_bounds
-from app.services.plan import _rupees
+from app.services.plan import _rupees, pace_status
 
 
 def _tx(client, headers, account_id, amount, day, merchant, category_id=None, direction="debit"):
@@ -83,7 +83,126 @@ def test_budget_status_matches_a_spreadsheet(household):
     assert status["spent"] == 500_000
     assert status["remaining"] == 500_000
     assert status["used_pct"] == 50.0
-    assert status["status"] == "on_track"
+    # pace depends on the calendar, so check it agrees with the rule rather than a fixed day
+    assert status["status"] == pace_status(500_000, 1_000_000, status["elapsed_pct"] / 100)
+    assert status["daily_allowance"] == 500_000 // status["days_left"]
+
+
+@pytest.mark.parametrize(
+    "spent, allocated, elapsed, expected",
+    [
+        (0, 1_000_000, 0.5, "on_track"),
+        (500_000, 1_000_000, 0.5, "on_track"),       # exactly on pace
+        (650_000, 1_000_000, 0.5, "at_risk"),        # 15 points ahead of the calendar
+        (500_000, 1_000_000, 0.05, "on_track"),      # too early to call a pace
+        (920_000, 1_000_000, 0.95, "at_risk"),       # nearly gone, whatever the date
+        (1_000_001, 1_000_000, 0.99, "over"),
+    ],
+)
+def test_pace_status(spent, allocated, elapsed, expected):
+    assert pace_status(spent, allocated, elapsed) == expected
+
+
+def test_a_fixed_bill_has_no_pace(household):
+    c, headers, account_id = household
+    rent = _category(c, headers, "Rent")
+    created = c.post("/budgets", headers=headers, json={"category_id": rent["id"], "amount": 2_100_000, "fixed": True})
+    assert created.json()["fixed"] is True
+    _tx(c, headers, account_id, 2_100_000, date.today().isoformat(), "Landlord", rent["id"])
+
+    status = next(b for b in c.get("/budgets/status", headers=headers).json() if b["category_id"] == rent["id"])
+    assert status["status"] == "on_track"  # paid in full on day one is not "ahead of pace"
+    assert status["daily_allowance"] == 0
+    assert status["projected"] is None
+    assert pace_status(2_100_001, 2_100_000, 0.1, fixed=True) == "over"
+
+
+def test_a_group_budget_covers_its_children(household):
+    c, headers, account_id = household
+    transport = next(x for x in c.get("/categories", headers=headers).json() if x["name"] == "Transport")
+    fuel, cab = _category(c, headers, "Fuel"), _category(c, headers, "Cab")
+    c.post("/budgets", headers=headers, json={"category_id": transport["id"], "amount": 800_000})
+
+    today = date.today().isoformat()
+    _tx(c, headers, account_id, 300_000, today, "Indian Oil", fuel["id"])
+    _tx(c, headers, account_id, 50_000, today, "Uber", cab["id"])
+
+    status = next(b for b in c.get("/budgets/status", headers=headers).json() if b["category_id"] == transport["id"])
+    assert status["scope"] == "group"
+    assert status["spent"] == 350_000
+
+
+def test_nested_budgets_are_reserved_once(household):
+    c, headers, account_id = household
+    groceries, dining = _category(c, headers, "Groceries"), _category(c, headers, "Dining")
+    _tx(c, headers, account_id, 10_000_000, date.today().isoformat(), "Salary", _category(c, headers, "Salary")["id"], "credit")
+    c.post("/budgets", headers=headers, json={"category_id": groceries["id"], "amount": 1_000_000})
+    c.post("/budgets", headers=headers, json={"category_id": dining["id"], "amount": 500_000})
+
+    # two category budgets, no overall: both are held back
+    assert c.get("/dashboard", headers=headers).json()["budgeted_remaining"] == 1_500_000
+
+    # an overall budget contains them, so only it is held back
+    c.post("/budgets", headers=headers, json={"amount": 4_000_000})
+    d = c.get("/dashboard", headers=headers).json()
+    assert d["budgeted_remaining"] == 4_000_000
+    assert d["free_to_spend"] == 10_000_000 - 4_000_000 - d["committed"]
+
+
+def test_budgets_refuse_income_and_duplicates(household):
+    c, headers, _ = household
+    salary, dining = _category(c, headers, "Salary"), _category(c, headers, "Dining")
+
+    assert c.post("/budgets", headers=headers, json={"category_id": salary["id"], "amount": 100}).status_code == 422
+    assert c.post("/budgets", headers=headers, json={"category_id": dining["id"], "amount": 100}).status_code == 201
+    assert c.post("/budgets", headers=headers, json={"category_id": dining["id"], "amount": 200}).status_code == 409
+    assert c.post("/budgets", headers=headers, json={"amount": 100}).status_code == 201
+    assert c.post("/budgets", headers=headers, json={"amount": 200}).status_code == 409
+
+
+def test_budget_can_be_changed_and_removed(household):
+    c, headers, _ = household
+    dining = _category(c, headers, "Dining")
+    created = c.post("/budgets", headers=headers, json={"category_id": dining["id"], "amount": 100_000}).json()
+
+    patched = c.patch(f"/budgets/{created['id']}", headers=headers, json={"amount": 250_000, "rollover": True})
+    assert patched.json()["amount"] == 250_000 and patched.json()["rollover"] is True
+
+    assert c.delete(f"/budgets/{created['id']}", headers=headers).status_code == 204
+    assert c.get("/budgets/status", headers=headers).json() == []
+    # removing frees the category for a new budget
+    assert c.post("/budgets", headers=headers, json={"category_id": dining["id"], "amount": 1}).status_code == 201
+
+
+def test_suggestions_average_recent_periods(household):
+    c, headers, account_id = household
+    fuel = _category(c, headers, "Fuel")
+    this_start = date.today().replace(day=1)
+    last = this_start - timedelta(days=10)
+    two_back = (last.replace(day=1) - timedelta(days=10))
+    _tx(c, headers, account_id, 400_000, last.isoformat(), "Indian Oil", fuel["id"])
+    _tx(c, headers, account_id, 200_000, two_back.isoformat(), "HP", fuel["id"])
+    _tx(c, headers, account_id, 999_999, date.today().isoformat(), "Shell", fuel["id"])  # current period is ignored
+
+    rows = {r["category_id"]: r for r in c.get("/budgets/suggestions", headers=headers).json()}
+    transport_id = fuel["parent_id"]
+    assert rows[fuel["id"]]["average"] == 300_000
+    assert rows[fuel["id"]]["periods"] == 2
+    assert rows[transport_id]["average"] == 300_000
+    assert rows[None]["average"] == 300_000
+
+
+def test_salary_day_moves_the_period(household):
+    c, headers, _ = household
+    assert c.get("/household", headers=headers).json()["cycle_start_day"] == 1
+    assert c.patch("/household", headers=headers, json={"cycle_start_day": 31}).status_code == 422
+
+    updated = c.patch("/household", headers=headers, json={"cycle_start_day": 25}).json()
+    assert updated["cycle_start_day"] == 25
+    start, end = period_bounds(25, date.today())
+    d = c.get("/dashboard", headers=headers).json()
+    assert d["period_start"] == start.isoformat()
+    assert d["period_end"] == end.isoformat()
 
 
 def test_rollover_carries_the_previous_period(household):

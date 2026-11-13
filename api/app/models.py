@@ -82,6 +82,7 @@ class Transaction(Base):
     merchant: Mapped[str] = mapped_column(String(160))
     category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id"), nullable=True, index=True)
     note: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[str] = mapped_column(Text, default="")  # ",trip,car," — see services/tags.py
     source: Mapped[str] = mapped_column(String(20), default="manual")
     confidence: Mapped[float] = mapped_column(default=1.0)
     needs_review: Mapped[bool] = mapped_column(default=False, index=True)
@@ -168,6 +169,7 @@ class Budget(Base):
     period: Mapped[str] = mapped_column(String(12), default="monthly")  # monthly | weekly
     amount: Mapped[int] = mapped_column(BigInteger)  # paise
     rollover: Mapped[bool] = mapped_column(default=False)
+    fixed: Mapped[bool] = mapped_column(default=False)  # a bill paid once a period: no pace, no daily allowance
     is_active: Mapped[bool] = mapped_column(default=True)
     created_on: Mapped[date] = mapped_column(Date, default=date.today)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -1,8 +1,8 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db
@@ -18,10 +18,12 @@ from ..schemas import (
     TransactionIn,
     TransactionDetailOut,
     TransactionOut,
+    TransactionPatch,
     TransferIn,
     TransferOut,
 )
 from ..services import categorise as cat
+from ..services import tags as tagging
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 transfers = APIRouter(prefix="/transfers", tags=["transfers"])
@@ -31,10 +33,21 @@ def _out(t: Transaction) -> TransactionOut:
     return TransactionOut(
         id=t.id, account_id=t.account_id, amount=t.amount, direction=t.direction,
         occurred_at=t.occurred_at, merchant=t.merchant, category_id=t.category_id,
-        note=t.note, source=t.source, confidence=t.confidence, needs_review=t.needs_review,
+        note=t.note, tags=tagging.decode(t.tags), source=t.source, confidence=t.confidence,
+        needs_review=t.needs_review,
         account_name=t.account.name if t.account else None,
         category_name=t.category.name if t.category else None,
     )
+
+
+def _search(stmt, q: str | None, tag: str | None):
+    """Search reads the merchant, the note and the tags, so a described row can be found."""
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(or_(Transaction.merchant.ilike(like), Transaction.note.ilike(like), Transaction.tags.ilike(like)))
+    if tag:
+        stmt = stmt.where(Transaction.tags.like(tagging.like(tag)))
+    return stmt
 
 
 @router.get("", response_model=list[TransactionOut])
@@ -47,6 +60,7 @@ def list_transactions(
     needs_review: bool | None = None,
     uncategorised: bool | None = None,
     q: str | None = None,
+    tag: str | None = None,
     start: date | None = None,
     end: date | None = None,
     exclude_transfers: bool = False,
@@ -70,8 +84,7 @@ def list_transactions(
         stmt = stmt.where(Transaction.needs_review.is_(True))
     if uncategorised:
         stmt = stmt.where(Transaction.category_id.is_(None))
-    if q:
-        stmt = stmt.where(Transaction.merchant.ilike(f"%{q}%"))
+    stmt = _search(stmt, q, tag)
     if start:
         stmt = stmt.where(Transaction.occurred_at >= start)
     if end:
@@ -85,23 +98,53 @@ def create_transaction(body: TransactionIn, hid: str = Depends(current_household
     account = db.get(Account, body.account_id)
     if not account or account.household_id != hid:
         raise HTTPException(status_code=404, detail="Account not found in this household")
-    t = Transaction(household_id=hid, **body.model_dump())
+    _check_category(db, hid, body.category_id)
+    t = Transaction(household_id=hid, **body.model_dump(exclude={"tags"}), tags=tagging.encode(body.tags))
     db.add(t)
     db.commit()
     db.refresh(t)
     return _out(t)
 
 
+def _check_category(db: Session, hid: str, category_id: str | None) -> None:
+    if category_id:
+        category = db.get(Category, category_id)
+        if not category or category.household_id != hid:
+            raise HTTPException(status_code=404, detail="Category not found in this household")
+
+
 @router.patch("/{tx_id}", response_model=TransactionOut)
-def update_transaction(tx_id: str, category_id: str | None = None, note: str | None = None,
-                       hid: str = Depends(current_household_id), db: Session = Depends(get_db)):
+def update_transaction(
+    tx_id: str,
+    category_id: str | None = None,
+    note: str | None = None,
+    body: TransactionPatch | None = Body(default=None),
+    hid: str = Depends(current_household_id),
+    db: Session = Depends(get_db),
+):
+    """Recategorise, describe and tag a row. Query params remain for older clients."""
     t = db.get(Transaction, tx_id)
     if not t or t.household_id != hid:
         raise HTTPException(status_code=404, detail="Transaction not found")
+
+    changes = body.model_dump(exclude_unset=True) if body else {}
     if category_id is not None:
-        t.category_id = category_id
+        changes.setdefault("category_id", category_id)
     if note is not None:
-        t.note = note
+        changes.setdefault("note", note)
+
+    if "category_id" in changes:
+        new_category = changes["category_id"] or None
+        _check_category(db, hid, new_category)
+        t.category_id = new_category
+        t.needs_review = False
+        t.confidence = 1.0
+    if "note" in changes:
+        t.note = (changes["note"] or "").strip()
+    if "tags" in changes:
+        t.tags = tagging.encode(changes["tags"])
+    if changes.get("merchant"):
+        t.merchant = changes["merchant"].strip()
     db.commit()
     db.refresh(t)
     return _out(t)
@@ -267,6 +310,7 @@ def count_transactions(
     needs_review: bool | None = None,
     uncategorised: bool | None = None,
     q: str | None = None,
+    tag: str | None = None,
     start: date | None = None,
     end: date | None = None,
     exclude_transfers: bool = False,
@@ -285,8 +329,7 @@ def count_transactions(
         stmt = stmt.where(Transaction.needs_review.is_(True))
     if uncategorised:
         stmt = stmt.where(Transaction.category_id.is_(None))
-    if q:
-        stmt = stmt.where(Transaction.merchant.ilike(f"%{q}%"))
+    stmt = _search(stmt, q, tag)
     if start:
         stmt = stmt.where(Transaction.occurred_at >= start)
     if end:
@@ -319,6 +362,7 @@ def get_transaction(tx_id: str, hid: str = Depends(current_household_id), db: Se
         occurred_at=tx.occurred_at,
         merchant=tx.merchant,
         note=tx.note or "",
+        tags=tagging.decode(tx.tags),
         category_id=tx.category_id,
         category_name=category.name if category else None,
         category_parent=parent.name if parent else None,
