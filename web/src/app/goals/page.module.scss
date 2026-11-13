@@ -5,7 +5,7 @@
 
 .header {
   margin-bottom: 18px;
-  h1 { font-size: 20px; margin-bottom: 6px; }
+  h1 { font-size: 26px; margin-bottom: 6px; }
   p { color: t.$dim; font-size: 13px; max-width: 68ch; margin: 0; }
 }
 
@@ -26,7 +26,7 @@
 
 .projection { font-family: t.$mono; font-size: 10px; color: t.$dim; white-space: nowrap; }
 
-.bar { height: 8px; border-radius: 99px; background: t.$sage-100; overflow: hidden; i { display: block; height: 100%; border-radius: 99px; background: t.$green; } }
+.bar { height: 6px; border-radius: 3px; background: t.$sunken; overflow: hidden; i { display: block; height: 100%; border-radius: 3px; background: t.$green; } }
 
 .actions { display: flex; gap: 8px; margin-top: 12px; }
 
@@ -43,7 +43,7 @@
 
 .error {
   background: t.$clay-soft;
-  color: #8c4a2c;
+  color: t.$clay-ink;
   border-radius: t.$radius-sm;
   padding: 10px 14px;
   font-size: 12.5px;

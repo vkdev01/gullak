@@ -19,28 +19,42 @@ export default function GoalsRail({ data }: { data: Dashboard }) {
         </p>
       ) : (
         <div className={s.goals}>
-          {data.goals.slice(0, 3).map((goal) => (
-            <div key={goal.id} className={s.goal}>
-              <div className={s.goalTop}>
-                <b>{goal.name}</b>
-                <span>
-                  {money(goal.contributed)} / {money(goal.target)}
-                </span>
+          {data.goals.slice(0, 3).map((goal) => {
+            const pct = Math.min(goal.progress_pct, 100);
+            return (
+              <div key={goal.id} className={s.goal}>
+                <svg className={s.goalRing} viewBox="0 0 36 36" aria-hidden="true">
+                  <circle cx="18" cy="18" r="15.9155" className={s.goalTrack} />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="15.9155"
+                    className={s.goalArc}
+                    strokeDasharray={`${pct} ${100 - pct}`}
+                    strokeDashoffset="25"
+                  />
+                  <text x="18" y="20.5" textAnchor="middle" className={s.goalPct}>
+                    {Math.round(goal.progress_pct)}%
+                  </text>
+                </svg>
+                <div className={s.goalText}>
+                  <b>{goal.name}</b>
+                  <span className="num">
+                    {money(goal.contributed)} of {money(goal.target)}
+                  </span>
+                  {goal.projected_finish && (
+                    <em>
+                      finishes{" "}
+                      {new Date(`${goal.projected_finish}T00:00:00`).toLocaleDateString("en-IN", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </em>
+                  )}
+                </div>
               </div>
-              <div className={s.bar}>
-                <i style={{ width: `${Math.min(goal.progress_pct, 100)}%` }} />
-              </div>
-              <div className={s.goalFoot}>
-                {goal.progress_pct}%
-                {goal.projected_finish
-                  ? ` · finishes ${new Date(`${goal.projected_finish}T00:00:00`).toLocaleDateString("en-IN", {
-                      month: "short",
-                      year: "numeric",
-                    })}`
-                  : ""}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

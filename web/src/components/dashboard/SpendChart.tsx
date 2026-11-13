@@ -1,45 +1,73 @@
 "use client";
 
-import { money } from "@/lib/format";
+import { money, shortDate, toISODate } from "@/lib/format";
 import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
+
+const HEIGHT = 40;
+
+/** Scale to the typical day, so one rent payment does not flatten the month. */
+function scaleFor(amounts: number[]): number {
+  const sorted = amounts.filter((a) => a > 0).sort((a, b) => a - b);
+  if (sorted.length === 0) return 1;
+  const max = sorted[sorted.length - 1];
+  const p90 = sorted[Math.floor((sorted.length - 1) * 0.9)];
+  return Math.max(Math.min(max, p90 * 2), 1);
+}
 
 export default function SpendChart({ data }: { data: Dashboard }) {
   const points = data.sparkline;
   if (points.length === 0) return null;
 
-  const max = Math.max(...points.map((p) => p.amount), 1);
-  const width = 100;
-  const height = 40;
-  const step = points.length > 1 ? width / (points.length - 1) : width;
-
-  const coords = points.map((p, i) => `${(i * step).toFixed(2)},${(height - (p.amount / max) * (height - 4)).toFixed(2)}`);
-  const line = `M${coords.join(" L")}`;
-  const area = `${line} L${width},${height} L0,${height} Z`;
+  const today = toISODate(new Date());
+  const past = points.filter((p) => p.date <= today);
+  const scale = scaleFor(past.map((p) => p.amount));
+  const offScale = past.filter((p) => p.amount > scale);
 
   return (
     <div className={s.card}>
       <div className={s.head}>
         <h2>Daily spend</h2>
-        <span>{money(data.spent)} this period</span>
+        <span className="num">{money(data.spent)} this period</span>
       </div>
 
-      <svg className={s.chart} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Daily spend">
-        <defs>
-          <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1F6F5C" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#1F6F5C" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#spendFill)" />
-        <path d={line} fill="none" stroke="#1F6F5C" strokeWidth="0.7" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <svg
+        className={s.chart}
+        viewBox={`0 0 ${points.length} ${HEIGHT}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Daily spend, ${money(data.spent)} so far`}
+      >
+        <line x1="0" x2={points.length} y1={HEIGHT} y2={HEIGHT} className={s.chartBase} vectorEffect="non-scaling-stroke" />
+        {points.map((p, i) => {
+          if (p.date > today || p.amount === 0) return null;
+          const clipped = p.amount > scale;
+          const h = clipped ? HEIGHT : Math.max((p.amount / scale) * (HEIGHT - 2), 0.6);
+          return (
+            <rect key={p.date} x={i + 0.15} width={0.7} y={HEIGHT - h} height={h} className={clipped ? s.barClipped : s.barDay}>
+              <title>{`${shortDate(p.date)} · ${money(p.amount)}`}</title>
+            </rect>
+          );
+        })}
       </svg>
 
       <div className={s.axis}>
-        <span>{points[0].date.slice(5)}</span>
-        <span>{points[Math.floor(points.length / 2)].date.slice(5)}</span>
-        <span>{points[points.length - 1].date.slice(5)}</span>
+        <span>{shortDate(points[0].date)}</span>
+        <span>{shortDate(points[Math.floor(points.length / 2)].date)}</span>
+        <span>{shortDate(points[points.length - 1].date)}</span>
       </div>
+
+      {offScale.length > 0 && (
+        <p className={s.chartNote}>
+          Off the scale:{" "}
+          {offScale.map((p, i) => (
+            <span key={p.date} className="num">
+              {i > 0 && " · "}
+              {shortDate(p.date)} {money(p.amount)}
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

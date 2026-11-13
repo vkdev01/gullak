@@ -1,61 +1,113 @@
 @use 'tokens' as t;
 @use 'mixins' as m;
 
-.top {
-  position: sticky; top: 0; z-index: 40;
-  background: rgba(237, 243, 238, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid t.$line;
+.shell {
+  display: grid;
+  grid-template-columns: t.$rail minmax(0, 1fr);
+  min-height: 100vh;
+
+  @include m.mq(md) { grid-template-columns: 1fr; }
 }
 
-.inner {
-  max-width: 1080px; margin: 0 auto; padding: 0 22px; height: 58px;
-  display: flex; align-items: center; gap: 16px;
+.content { min-width: 0; }
 
-  @include m.mq(md) { padding: 0 14px; gap: 10px; }
+/* ---------- left rail (desktop) ---------- */
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 18px 12px 14px;
+  border-right: 1px solid t.$line;
+  background: t.$paper;
+
+  @include m.mq(md) { display: none; }
 }
 
 .mark {
-  display: flex; align-items: center; gap: 8px;
-  @include m.card; border-radius: 11px; padding: 5px 11px;
-  font-weight: 600; font-size: 13px; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px;
+  font-family: t.$display; font-weight: 600; font-size: 17px; letter-spacing: -0.02em;
 
   i {
-    width: 19px; height: 19px; border-radius: 6px; background: t.$green; color: #fff;
-    display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-style: normal;
+    width: 22px; height: 22px; border-radius: 5px; background: t.$green; color: t.$card;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-style: normal;
   }
 }
 
-.nav {
-  display: flex; gap: 2px;
+.nav { display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; }
 
-  @include m.mq(md) { overflow-x: auto; scrollbar-width: none; flex: 1; }
-  &::-webkit-scrollbar { display: none; }
+.group {
+  display: flex; flex-direction: column; gap: 1px;
 
   a {
-    padding: 7px 12px; border-radius: 99px; font-size: 13px; color: t.$dim;
-    white-space: nowrap;
-    &:hover { color: t.$ink; }
+    padding: 6px 8px; border-radius: t.$radius-sm; font-size: 13.5px; color: t.$ink2;
+    &:hover { background: t.$sunken; color: t.$ink; }
   }
 }
 
+.groupLabel { @include m.kicker; padding: 0 8px 4px; }
+
 .on {
-  background: t.$card; border: 1px solid t.$line; color: t.$ink;
-  box-shadow: t.$shadow; font-weight: 500;
+  background: t.$card !important;
+  color: t.$ink !important;
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 t.$green, 0 0 0 1px t.$line;
 }
 
-.right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+/* ---------- account ---------- */
+.account { position: relative; border-top: 1px solid t.$line; padding-top: 10px; }
 
-.demo {
-  font-family: t.$mono; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: t.$clay; background: t.$clay-soft; border-radius: 99px; padding: 4px 9px;
-  @include m.mq(sm) { display: none; }
+.accountBtn {
+  width: 100%; display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+  border-radius: t.$radius-sm; text-align: left;
+  &:hover { background: t.$sunken; }
 }
 
 .avatar {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: linear-gradient(135deg, t.$clay, t.$butter);
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
+  background: t.$green-soft; color: t.$green;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11.5px; font-weight: 600; color: #fff; border: 2px solid t.$card;
-  @include m.mq(md) { display: none; }
+  font-size: 11.5px; font-weight: 600;
+}
+
+.accountText {
+  display: flex; flex-direction: column; min-width: 0;
+
+  b, em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  b { font-size: 12.5px; font-weight: 500; }
+  em { font-style: normal; font-size: 11px; color: t.$dim; }
+}
+
+.menu {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 6px);
+  background: t.$card; border: 1px solid t.$line; border-radius: t.$radius-sm;
+  box-shadow: t.$shadow-pop; padding: 4px; z-index: 50;
+
+  button {
+    width: 100%; text-align: left; padding: 7px 9px; border-radius: 4px; font-size: 13px;
+    &:hover { background: t.$sunken; }
+  }
+}
+
+/* ---------- top bar (mobile) ---------- */
+.top {
+  display: none;
+
+  @include m.mq(md) {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 12px;
+    height: t.$bar; padding: 0 12px;
+    background: t.$paper; border-bottom: 1px solid t.$line;
+  }
+}
+
+.topNav {
+  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; flex: 1;
+  &::-webkit-scrollbar { display: none; }
+
+  a {
+    padding: 6px 10px; border-radius: t.$radius-sm; font-size: 13px; color: t.$ink2; white-space: nowrap;
+  }
 }

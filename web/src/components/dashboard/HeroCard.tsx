@@ -5,54 +5,53 @@ import type { Dashboard } from "@/lib/api";
 import s from "./dashboard.module.scss";
 
 export default function HeroCard({ data }: { data: Dashboard }) {
-  const allocated = data.budgets.reduce((sum, b) => sum + b.allocated, 0);
-  const spentInBudgets = data.budgets.reduce((sum, b) => sum + b.spent, 0);
-  const hasBudgets = allocated > 0;
-  const usedPct = hasBudgets ? Math.round((spentInBudgets / allocated) * 100) : Math.round(data.elapsed_pct);
+  // The API plans against last period's income until salary lands, so rebuild that base from the identity.
+  const base = data.free_to_spend + data.spent + data.committed + data.budgeted_remaining;
+  const planned = data.income === 0 && base > 0;
+  const spentPct = base > 0 ? Math.min((data.spent / base) * 100, 100) : 0;
+  const elapsed = Math.min(data.elapsed_pct, 100);
+  const ahead = spentPct > elapsed + 5;
 
-  const radius = 44;
-  const circumference = 2 * Math.PI * radius;
-  const dash = (Math.min(usedPct, 100) / 100) * circumference;
+  const lines: [string, number][] = [
+    [planned ? "Expected income" : "Income", base],
+    ["Spent so far", -data.spent],
+    ["Bills still due", -data.committed],
+    ["Left in budgets", -data.budgeted_remaining],
+  ];
 
   return (
     <div className={s.hero}>
-      <div className={s.orb} aria-hidden="true" />
-      <div>
-        <div className={s.heroLabel}>Free to spend · {data.period_label}</div>
-        <div className={s.heroValue}>{money(data.free_to_spend)}</div>
+      <div className={s.heroMain}>
+        <div className={s.heroLabel}>Free to spend</div>
+        <div className={`${s.heroValue} ${data.free_to_spend < 0 ? s.neg : ""}`}>{money(data.free_to_spend)}</div>
         <div className={s.heroSub}>
-          {money(data.committed)} committed · {money(data.budgeted_remaining)} left in budgets · {data.days_left} days
-          left
+          {planned ? "Planned against last period's income until salary lands" : `${data.days_left} days left in the period`}
         </div>
-        <div className={s.heroMeta}>
-          <span>
-            In <b>{money(data.income)}</b>
-          </span>
-          <span>
-            Out <b>{money(data.spent)}</b>
-          </span>
+
+        <div className={s.heroPace} aria-label={`${Math.round(spentPct)}% of income spent, ${Math.round(elapsed)}% of the period gone`}>
+          <div className={s.pace}>
+            <div className={`${s.paceFill} ${ahead ? s.paceAhead : ""}`} style={{ width: `${spentPct}%` }} />
+            <div className={s.paceMark} style={{ left: `${elapsed}%` }} />
+          </div>
+          <div className={s.heroPaceText}>
+            <span>{Math.round(spentPct)}% of income spent</span>
+            <span>{Math.round(elapsed)}% of the period gone</span>
+          </div>
         </div>
       </div>
 
-      <div className={s.ring} aria-label={`${usedPct}% of budgets used`}>
-        <svg viewBox="0 0 104 104">
-          <circle cx="52" cy="52" r={radius} fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="9" />
-          <circle
-            cx="52"
-            cy="52"
-            r={radius}
-            fill="none"
-            stroke="#fff"
-            strokeWidth="9"
-            strokeLinecap="round"
-            strokeDasharray={`${dash} ${circumference - dash}`}
-          />
-        </svg>
-        <div className={s.ringInner}>
-          <b>{usedPct}%</b>
-          <span>{hasBudgets ? "budgets used" : "of period"}</span>
+      <dl className={s.calc} aria-label="How free to spend is calculated">
+        {lines.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd className="num">{value === 0 && label !== lines[0][0] ? "—" : money(value)}</dd>
+          </div>
+        ))}
+        <div className={s.calcTotal}>
+          <dt>Free to spend</dt>
+          <dd className="num">{money(data.free_to_spend)}</dd>
         </div>
-      </div>
+      </dl>
     </div>
   );
 }

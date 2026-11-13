@@ -27,6 +27,12 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     },
   });
 
+  if (res.status === 401 && !path.startsWith("/auth/") && typeof window !== "undefined") {
+    setToken(null);
+    const loginPath = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/login/`;
+    if (window.location.pathname !== loginPath) window.location.assign(loginPath);
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail ?? `Request failed (${res.status})`);

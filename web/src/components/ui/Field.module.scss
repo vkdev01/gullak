@@ -5,11 +5,9 @@
 
   label {
     display: block;
-    font-family: t.$mono;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: t.$dim;
+    font-size: 12px;
+    font-weight: 500;
+    color: t.$ink2;
     margin-bottom: 5px;
   }
 
@@ -18,13 +16,13 @@
     background: t.$card;
     border: 1px solid t.$line;
     border-radius: t.$radius-sm;
-    padding: 10px 12px;
+    padding: 9px 11px;
     font-size: 14px;
     outline: none;
 
     &:focus {
       border-color: t.$green;
-      box-shadow: 0 0 0 3px rgba(31, 111, 92, 0.1);
+      box-shadow: 0 0 0 3px t.$green-soft;
     }
   }
 }

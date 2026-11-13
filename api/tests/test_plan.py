@@ -11,6 +11,7 @@ import pytest
 from app.db import SessionLocal
 from app.models import Budget, Transaction
 from app.services.periods import elapsed_fraction, period_bounds
+from app.services.plan import _rupees
 
 
 def _tx(client, headers, account_id, amount, day, merchant, category_id=None, direction="debit"):
@@ -35,6 +36,14 @@ def _category(client, headers, name):
 
 
 # --------------------------------------------------------------- periods
+
+@pytest.mark.parametrize(
+    "paise, text",
+    [(0, "₹0"), (99_900, "₹999"), (597_000, "₹5,970"), (12_450_000, "₹1,24,500"), (1_234_567_800, "₹1,23,45,678")],
+)
+def test_rupees_uses_indian_grouping(paise, text):
+    assert _rupees(paise) == text
+
 
 def test_periods_are_salary_anchored():
     # anchor on the 25th: 12 Nov belongs to 25 Oct → 24 Nov
@@ -177,7 +186,8 @@ def test_free_to_spend_identity(household):
     assert d["spent"] == 200_000
     assert d["budgeted_remaining"] == 800_000
     # the identity the hero number depends on
-    assert d["free_to_spend"] == d["income"] - d["committed"] - d["budgeted_remaining"]
+    assert d["free_to_spend"] == d["income"] - d["spent"] - d["committed"] - d["budgeted_remaining"]
+    assert d["free_to_spend"] == 10_000_000 - 200_000 - 800_000
     assert len(d["sparkline"]) > 20
     assert d["period_label"]
 

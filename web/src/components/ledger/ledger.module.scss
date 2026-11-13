@@ -8,19 +8,21 @@
   align-items: center;
   margin-bottom: 12px;
   @include m.card;
-  border-radius: 14px;
-  padding: 6px 6px 6px 16px;
+  border-radius: t.$radius-sm;
+  padding: 4px 4px 4px 14px;
 
   input {
     flex: 1;
     border: 0;
     background: none;
     outline: none;
-    font-size: 14.5px;
+    font-size: 14px;
     min-width: 0;
 
     &::placeholder { color: t.$dim; }
   }
+
+  &:focus-within { border-color: t.$green; }
 }
 
 /* ================= toolbar ================= */
@@ -39,8 +41,8 @@
   align-items: center;
   gap: 8px;
   @include m.card;
-  border-radius: 99px;
-  padding: 7px 12px;
+  border-radius: t.$radius-sm;
+  padding: 6px 11px;
 
   input {
     border: 0;
@@ -49,17 +51,18 @@
     flex: 1;
     font-size: 13px;
   }
+
+  &:focus-within { border-color: t.$green; }
 }
 
 .select {
   border: 1px solid t.$line;
   background: t.$card;
-  border-radius: 99px;
-  padding: 7px 11px;
+  border-radius: t.$radius-sm;
+  padding: 6px 10px;
   font-size: 12.5px;
   color: t.$ink;
   outline: none;
-  box-shadow: t.$shadow;
 
   &:focus { border-color: t.$green; }
 }
@@ -67,14 +70,14 @@
 .segment {
   display: flex;
   gap: 2px;
-  padding: 3px;
-  border-radius: 99px;
-  background: t.$sage-100;
+  padding: 2px;
+  border-radius: t.$radius-sm;
+  background: t.$sunken;
   border: 1px solid t.$line;
 
   button {
-    border-radius: 99px;
-    padding: 5px 12px;
+    border-radius: 4px;
+    padding: 4px 10px;
     font-size: 12px;
     color: t.$dim;
     white-space: nowrap;
@@ -86,7 +89,7 @@
     background: t.$card;
     color: t.$ink;
     font-weight: 500;
-    box-shadow: 0 1px 2px rgba(23, 37, 31, 0.08);
+    box-shadow: t.$shadow;
   }
 }
 
@@ -95,7 +98,7 @@
   @include m.card;
   // `clip` keeps the rounded corners without creating a scroll container,
   // which would make the sticky day headers position against the card instead
-  // of the viewport — and park them 58px below the first row.
+  // of the viewport.
   overflow: clip;
   padding: 0;
 }
@@ -104,106 +107,107 @@
 
 .dayHead {
   position: sticky;
-  top: 58px; /* clears the app bar */
+  top: 0;
   z-index: 2;
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 9px 20px;
-  background: #f4f8f4;
+  padding: 6px 16px;
+  background: t.$sunken;
   border-bottom: 1px solid t.$line-soft;
 
   b {
-    font-family: t.$mono;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 12px;
     color: t.$ink2;
-    font-weight: 500;
+    font-weight: 600;
   }
 
   em {
     font-style: normal;
-    font-size: 11px;
+    font-size: 11.5px;
     color: t.$dim;
   }
 
   .dayNet {
     margin-left: auto;
     @include m.figure;
-    font-size: 11px;
-    color: t.$dim;
+    font-size: 11.5px;
+    color: t.$ink2;
   }
 
-  @include m.mq(md) { padding: 8px 14px; }
+  @include m.mq(md) { top: t.$bar; padding: 6px 12px; }
 }
 
 /* ================= row ================= */
 .row {
   display: grid;
-  grid-template-columns: 32px minmax(180px, 1.7fr) 156px 118px 104px;
-  gap: 14px;
+  grid-template-columns: 22px minmax(180px, 1fr) 150px 130px 110px;
+  gap: 12px;
   align-items: center;
-  padding: 11px 20px;
+  min-height: 36px;
+  padding: 5px 16px;
   border-bottom: 1px solid t.$line-soft;
   background: t.$card;
-  transition: background 90ms;
+  cursor: default;
 
   &:last-child { border-bottom: none; }
-  &:hover { background: #fbfdfa; }
+  &:hover { background: t.$hover; }
+  &:focus-visible { outline-offset: -2px; }
 
   &.sel {
-    background: #f2f8f4;
+    background: t.$green-soft;
     box-shadow: inset 2px 0 0 t.$green;
   }
 
   @include m.mq(md) {
-    grid-template-columns: 32px minmax(0, 1fr) auto;
-    padding: 10px 14px;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    padding: 6px 12px;
     gap: 10px;
   }
 }
 
 .tile {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 /* category tints, driven by the category's own colour */
-.cGreen  { background: #e4efe9; color: #1f6f5c; }
-.cClay   { background: #f7e9e1; color: #a95f3c; }
-.cButter { background: #f8f0da; color: #8a6e22; }
-.cNone   { background: #eef0ec; color: #7c8785; }
+.cGreen  { background: t.$green-soft; color: t.$green; }
+.cClay   { background: t.$clay-soft; color: t.$clay-ink; }
+.cButter { background: t.$butter-soft; color: t.$butter-ink; }
+.cNone   { background: t.$sunken; color: t.$dim; }
 
+/* merchant and note share one line so a row stays one line tall */
 .main {
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
 
   b {
-    display: block;
+    flex: none;
+    max-width: 70%;
     font-size: 13.5px;
     font-weight: 500;
-    letter-spacing: -0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   span {
-    display: block;
-    font-family: t.$mono;
-    font-size: 10.5px;
+    min-width: 0;
+    font-size: 12px;
     color: t.$dim;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-top: 1px;
   }
 }
 
@@ -212,9 +216,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  padding: 3px 9px 3px 7px;
-  border-radius: 99px;
+  font-size: 11.5px;
+  padding: 1px 7px 1px 6px;
+  border-radius: 4px;
   border: 1px solid transparent;
   white-space: nowrap;
   max-width: 150px;
@@ -231,23 +235,23 @@
     text-overflow: ellipsis;
   }
 
-  &:hover { border-color: rgba(23, 37, 31, 0.14); }
+  &:hover { border-color: t.$line; }
 
   &.cGreen, &.cClay, &.cButter { border-color: transparent; }
 }
 
 .chipNone {
   border-style: dashed;
-  border-color: rgba(23, 37, 31, 0.18);
+  border-color: t.$line;
   color: t.$dim;
   background: transparent;
 }
 
 .chipSelect {
-  font-size: 11px;
+  font-size: 11.5px;
   border: 1px solid t.$green;
-  border-radius: 99px;
-  padding: 3px 8px;
+  border-radius: 4px;
+  padding: 2px 6px;
   background: t.$card;
   color: t.$ink;
   max-width: 160px;
@@ -297,11 +301,9 @@
 }
 
 .count {
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-top: 1px solid t.$line-soft;
-  font-family: t.$mono;
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-size: 11.5px;
   color: t.$dim;
   display: flex;
   justify-content: space-between;
@@ -330,15 +332,14 @@
   gap: 2px;
   border: 1px solid t.$line;
   background: t.$card;
-  border-radius: 99px;
-  padding: 3px;
-  box-shadow: t.$shadow;
+  border-radius: t.$radius-sm;
+  padding: 2px;
 }
 
 .stepBtn {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 15px;
   line-height: 1;
   color: t.$ink2;
@@ -346,7 +347,7 @@
   align-items: center;
   justify-content: center;
 
-  &:hover:not(:disabled) { background: t.$sage-100; }
+  &:hover:not(:disabled) { background: t.$sunken; }
   &:disabled { opacity: 0.3; cursor: default; }
 }
 
@@ -360,15 +361,12 @@
 }
 
 .jump {
-  font-family: t.$mono;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: t.$dim;
   border: 1px solid t.$line;
   background: t.$card;
-  border-radius: 99px;
-  padding: 6px 11px;
+  border-radius: t.$radius-sm;
+  padding: 6px 10px;
 
   &:hover { color: t.$ink; }
 }
@@ -385,15 +383,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border-top: 1px solid t.$line-soft;
   flex-wrap: wrap;
 }
 
 .pageInfo {
-  font-family: t.$mono;
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-size: 11.5px;
   color: t.$dim;
 }
 
@@ -403,18 +399,18 @@
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  border-radius: 8px;
+  border-radius: t.$radius-sm;
   font-size: 12px;
   color: t.$ink2;
   border: 1px solid transparent;
 
-  &:hover:not(:disabled) { background: t.$sage-100; }
+  &:hover:not(:disabled) { background: t.$sunken; }
   &:disabled { opacity: 0.35; cursor: default; }
 }
 
 .pageOn {
   background: t.$green;
-  color: #fff;
+  color: t.$card;
   font-weight: 500;
 
   &:hover:not(:disabled) { background: t.$green; }
@@ -427,7 +423,7 @@
 }
 
 @include m.mq(md) {
-  .pagination { padding: 12px 14px; }
+  .pagination { padding: 10px 12px; }
   .stepLabel { min-width: 96px; font-size: 12px; }
 }
 
@@ -435,7 +431,7 @@
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(23, 37, 31, 0.34);
+  background: t.$scrim;
   z-index: 40;
 }
 
@@ -453,11 +449,11 @@
   max-width: 92vw;
   background: t.$card;
   border-left: 1px solid t.$line;
-  box-shadow: -18px 0 40px rgba(23, 37, 31, 0.12);
+  box-shadow: t.$shadow-pop;
   z-index: 41;
   padding: 18px 22px 22px;
   overflow-y: auto;
-  animation: slideIn 160ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation: slideIn 120ms ease-out;
 }
 
 .drawerHead {
@@ -478,17 +474,17 @@
 .drawerClose {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
+  border-radius: 4px;
   font-size: 17px;
   line-height: 1;
   color: t.$dim;
 
-  &:hover { background: t.$sage-100; color: t.$ink; }
+  &:hover { background: t.$sunken; color: t.$ink; }
 }
 
 .drawerError {
   background: t.$clay-soft;
-  color: #8c4a2c;
+  color: t.$clay-ink;
   border-radius: t.$radius-sm;
   padding: 10px 12px;
   font-size: 12px;
@@ -499,7 +495,7 @@
 .drawerTile {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: t.$radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -521,9 +517,8 @@
 }
 
 .drawerAmount {
+  @include m.figure-lg;
   font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   margin: 14px 0 10px;
 
@@ -533,20 +528,17 @@
 .drawerChips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 
 .drawerChip {
-  font-family: t.$mono;
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 11px;
   color: t.$dim;
   border: 1px solid t.$line;
-  border-radius: 99px;
-  padding: 3px 8px;
+  border-radius: 4px;
+  padding: 1px 7px;
 }
 
 .drawerChipWarn {
   background: t.$butter-soft;
   border-color: transparent;
-  color: #8a6e22;
+  color: t.$butter-ink;
 }
 
 .fields {
@@ -560,12 +552,9 @@
   div { min-width: 0; }
 
   dt {
-    font-family: t.$mono;
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 11px;
     color: t.$dim;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
 
   dd {
@@ -588,7 +577,7 @@
 .fieldSelect {
   width: 100%;
   border: 1px solid t.$line;
-  border-radius: 8px;
+  border-radius: t.$radius-sm;
   padding: 6px 9px;
   font-size: 12.5px;
   background: t.$card;
