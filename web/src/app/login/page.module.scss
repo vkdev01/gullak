@@ -2,25 +2,31 @@
 @use 'mixins' as m;
 
 .wrap {
-  min-height: calc(100vh - 58px); display: grid; grid-template-columns: 1.05fr 0.95fr;
+  min-height: 100vh; display: grid; grid-template-columns: 1.05fr 0.95fr;
   @include m.mq(md) { grid-template-columns: 1fr; }
 }
 
 .brand {
-  background: linear-gradient(150deg, #1f6f5c, #2e8c74 60%, #4fa98f);
-  color: #fff; padding: clamp(28px, 4vw, 56px);
-  display: flex; flex-direction: column; justify-content: flex-end;
+  background: t.$sunken;
+  border-right: 1px solid t.$line;
+  color: t.$ink; padding: clamp(28px, 4vw, 56px);
+  display: flex; flex-direction: column; justify-content: space-between;
 
-  h1 { font-size: clamp(28px, 3.4vw, 42px); line-height: 1.05; font-weight: 500; }
-  p { color: rgba(255, 255, 255, 0.82); max-width: 34ch; margin: 14px 0 0; font-size: 14.5px; }
-  ul { list-style: none; padding: 0; margin: 24px 0 0; display: flex; flex-direction: column; gap: 9px; }
-  li { font-size: 13px; color: rgba(255, 255, 255, 0.86); padding-left: 18px; position: relative; }
-  li::before {
-    content: ""; position: absolute; left: 0; top: 0.6em;
-    width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.7);
-  }
+  h1 { font-size: clamp(30px, 3.6vw, 46px); line-height: 1.05; max-width: 16ch; }
+  p { color: t.$ink2; max-width: 38ch; margin: 14px 0 0; font-size: 14.5px; }
+  ul { list-style: none; padding: 0; margin: 28px 0 0; border-top: 1px solid t.$line; }
+  li { font-size: 13px; color: t.$ink2; padding: 10px 0; border-bottom: 1px solid t.$line; }
 
   @include m.mq(md) { display: none; }
+}
+
+.mark {
+  display: flex; align-items: center; gap: 8px; font-family: t.$display; font-weight: 600; font-size: 17px;
+
+  i {
+    width: 22px; height: 22px; border-radius: 5px; background: t.$green; color: t.$card;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-style: normal;
+  }
 }
 
 .form { display: flex; align-items: center; justify-content: center; padding: clamp(24px, 4vw, 48px); }

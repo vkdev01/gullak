@@ -18,7 +18,7 @@
   flex-wrap: wrap;
 }
 
-.title { font-size: 20px; }
+.title { font-size: 26px; }
 
 .sub { font-size: 12.5px; color: t.$dim; margin: 4px 0 0; }
 
@@ -29,7 +29,7 @@
   border-radius: t.$radius-sm;
   padding: 10px 14px;
   font-size: 12.5px;
-  color: #7d6420;
+  color: t.$butter-ink;
   margin: 0 0 14px;
 }
 
@@ -42,7 +42,7 @@
   code {
     font-family: t.$mono;
     font-size: 11px;
-    background: t.$sage-100;
+    background: t.$sunken;
     padding: 1px 5px;
     border-radius: 4px;
   }
@@ -63,6 +63,7 @@
 .span8 { grid-column: span 8; }
 .span4 { grid-column: span 4; }
 .span12 { grid-column: span 12; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
 
 @include m.mq(md) {
   .span8, .span4, .span12 { grid-column: 1 / -1; }

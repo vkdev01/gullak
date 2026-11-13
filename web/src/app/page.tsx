@@ -64,7 +64,7 @@ export default function DashboardPage() {
         <div>
           <h1 className={s.title}>Dashboard</h1>
           <p className={s.sub}>
-            {dashboard.period_label} · {dashboard.days_left} days left · {dashboard.elapsed_pct}% elapsed
+            {dashboard.period_label} · {dashboard.days_left} days left
           </p>
         </div>
         <div className={s.actions}>
@@ -87,17 +87,15 @@ export default function DashboardPage() {
       )}
 
       <div className={s.grid}>
-        <div className={s.span8}>
+        <div className={s.span12}>
           <HeroCard data={dashboard} />
-        </div>
-        <div className={s.span4}>
-          <GoalsRail data={dashboard} />
         </div>
 
         <div className={s.span8}>
           <SpendChart data={dashboard} />
         </div>
-        <div className={s.span4}>
+        <div className={`${s.span4} ${s.stack}`}>
+          <GoalsRail data={dashboard} />
           <DueSoon data={dashboard} />
         </div>
 

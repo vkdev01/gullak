@@ -1,7 +1,7 @@
 @use 'tokens' as t;
 
 :root {
-  --pg: #{t.$sage-50};
+  --pg: #{t.$paper};
   --card: #{t.$card};
   --ink: #{t.$ink};
   --dim: #{t.$dim};
@@ -28,6 +28,9 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 input, select { font: inherit; color: inherit; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+h1 { font-family: t.$display; font-weight: 600; letter-spacing: -0.025em; }
+
+:focus-visible { outline: 2px solid t.$green; outline-offset: 2px; }
 
 // Small shared helpers. Anything with structure lives in a component module.
 .num { font-family: t.$mono; font-variant-numeric: tabular-nums; }

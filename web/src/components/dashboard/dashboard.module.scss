@@ -21,85 +21,77 @@
 
 /* ---------- hero ---------- */
 .hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: t.$radius;
-  padding: 22px 24px;
-  color: #fff;
-  background: linear-gradient(120deg, #1f6f5c 0%, #2e8c74 55%, #4fa98f 100%);
-  box-shadow: 0 14px 30px rgba(31, 111, 92, 0.24);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  min-height: 176px;
+  @include m.card;
+  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 32px;
+  align-items: stretch;
 
-  @include m.mq(md) { flex-direction: column; align-items: flex-start; }
+  @include m.mq(md) { grid-template-columns: 1fr; gap: 18px; }
 }
 
-.heroLabel {
-  font-family: t.$mono;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.72;
-}
+.heroMain { display: flex; flex-direction: column; min-width: 0; }
+
+.heroLabel { @include m.kicker; }
 
 .heroValue {
-  font-size: 42px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  @include m.figure-lg;
+  font-size: 46px;
   line-height: 1.05;
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
+  margin-top: 8px;
 
-  @include m.mq(md) { font-size: 34px; }
+  &.neg { color: t.$clay; }
+  @include m.mq(md) { font-size: 36px; }
 }
 
 .heroSub {
-  font-size: 12.5px;
-  opacity: 0.82;
+  font-size: 13px;
+  color: t.$dim;
   margin-top: 6px;
 }
 
-.heroMeta {
+.heroPace { margin-top: auto; padding-top: 18px; }
+
+.heroPaceText {
   display: flex;
-  gap: 18px;
-  margin-top: 16px;
-  font-family: t.$mono;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  opacity: 0.85;
-
-  span b { font-weight: 500; opacity: 1; }
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: t.$dim;
+  margin-top: 6px;
+  white-space: nowrap;
 }
 
-.orb {
-  position: absolute;
-  right: -40px;
-  top: -60px;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 65%);
-}
-
-/* ---------- ring ---------- */
-.ring { position: relative; width: 104px; height: 104px; flex: none; }
-
-.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-
-.ringInner {
-  position: absolute;
-  inset: 0;
+/* the arithmetic behind the hero, always visible */
+.calc {
+  margin: 0;
+  padding-left: 22px;
+  border-left: 1px solid t.$line;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 1px;
+  font-size: 12.5px;
 
-  b { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-  span { font-family: t.$mono; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.72; }
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid t.$line-soft;
+  }
+
+  dt { color: t.$ink2; }
+  dd { margin: 0; color: t.$ink; }
+
+  @include m.mq(md) { padding-left: 0; border-left: 0; border-top: 1px solid t.$line; padding-top: 10px; }
+}
+
+.calcTotal {
+  border-bottom: 0 !important;
+  border-top: 1px solid t.$ink;
+  margin-top: 2px;
+  font-weight: 600;
 }
 
 /* ---------- section heads ---------- */
@@ -109,47 +101,48 @@
   align-items: baseline;
   margin-bottom: 12px;
 
-  h2 { font-size: 13.5px; }
-  a, span { font-size: 11.5px; color: t.$dim; }
+  h2 { font-size: 14px; }
+  a, span { font-size: 12px; color: t.$dim; }
+  a:hover { color: t.$green; }
 }
 
 /* ---------- chart ---------- */
-.chart { width: 100%; height: 150px; display: block; }
+.chart { width: 100%; height: 140px; display: block; }
+
+.chartBase { stroke: t.$line; stroke-width: 1; }
+.barDay { fill: t.$green; }
+.barClipped { fill: t.$clay; }
 
 .axis {
   display: flex;
   justify-content: space-between;
-  font-family: t.$mono;
-  font-size: 9px;
+  font-size: 11px;
   color: t.$dim;
-  margin-top: 4px;
+  margin-top: 6px;
 }
+
+.chartNote { margin: 8px 0 0; font-size: 11.5px; color: t.$dim; }
 
 /* ---------- goals ---------- */
-.goals { display: flex; flex-direction: column; gap: 14px; }
+.goals { display: flex; flex-direction: column; gap: 12px; }
 
-.goal { display: flex; flex-direction: column; gap: 5px; }
+.goal { display: flex; align-items: center; gap: 12px; }
 
-.goalTop {
+.goalRing { width: 52px; height: 52px; flex: none; }
+.goalTrack { fill: none; stroke: t.$sunken; stroke-width: 3.2; }
+.goalArc { fill: none; stroke: t.$green; stroke-width: 3.2; stroke-linecap: round; }
+.goalPct { font-family: t.$mono; font-size: 8px; fill: t.$ink; }
+
+.goalText {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: column;
+  min-width: 0;
   font-size: 12.5px;
 
-  b { font-weight: 500; }
-  span { font-family: t.$mono; font-size: 10.5px; color: t.$dim; }
+  b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  span { font-size: 12px; color: t.$ink2; }
+  em { font-style: normal; font-size: 11.5px; color: t.$dim; }
 }
-
-.bar {
-  height: 6px;
-  border-radius: 99px;
-  background: t.$sage-100;
-  overflow: hidden;
-
-  i { display: block; height: 100%; border-radius: 99px; background: t.$green; }
-}
-
-.goalFoot { font-family: t.$mono; font-size: 9.5px; color: t.$dim; }
 
 /* ---------- due ---------- */
 .due { display: flex; flex-direction: column; }
@@ -163,7 +156,7 @@
   font-size: 12.5px;
 
   &:last-child { border-bottom: none; }
-  em { font-style: normal; font-family: t.$mono; font-size: 10px; color: t.$dim; }
+  em { font-style: normal; font-size: 11.5px; color: t.$dim; }
   b { font-weight: 500; font-variant-numeric: tabular-nums; }
 }
 
@@ -174,32 +167,33 @@
   border: 1px solid t.$line;
   border-radius: t.$radius-sm;
   padding: 12px 14px;
-  background: #fdfefb;
+  background: t.$card;
 
-  &.over { border-color: rgba(199, 123, 90, 0.5); background: t.$clay-soft; }
-  &.at_risk { border-color: rgba(217, 190, 114, 0.6); background: t.$butter-soft; }
+  &.over { border-color: t.$clay; box-shadow: inset 3px 0 0 t.$clay; }
+  &.at_risk { border-color: t.$butter; box-shadow: inset 3px 0 0 t.$butter; }
 }
 
 .budgetTop {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12px;
+  font-size: 12.5px;
 
   b { font-weight: 500; }
-  span { font-family: t.$mono; font-size: 9.5px; color: t.$dim; }
+  span { font-size: 11.5px; color: t.$dim; }
 }
 
 .budgetValue {
-  font-family: t.$mono;
+  @include m.figure;
   font-size: 16px;
-  margin: 6px 0 4px;
-  font-variant-numeric: tabular-nums;
+  margin: 6px 0 6px;
 }
 
-.pace { position: relative; height: 6px; border-radius: 99px; background: t.$sage-100; overflow: visible; }
+.pace { position: relative; height: 6px; border-radius: 3px; background: t.$sunken; overflow: visible; }
 
-.paceFill { height: 100%; border-radius: 99px; background: t.$green; }
+.paceFill { height: 100%; border-radius: 3px; background: t.$green; }
+
+.paceAhead { background: t.$clay; }
 
 .paceMark {
   position: absolute;
@@ -207,17 +201,16 @@
   width: 2px;
   height: 12px;
   background: t.$ink;
-  opacity: 0.35;
-  border-radius: 2px;
+  opacity: 0.45;
+  border-radius: 1px;
 }
 
 .budgetFoot {
   display: flex;
   justify-content: space-between;
-  font-family: t.$mono;
-  font-size: 9px;
+  font-size: 11px;
   color: t.$dim;
-  margin-top: 5px;
+  margin-top: 6px;
 }
 
 /* ---------- insights ---------- */
@@ -226,18 +219,15 @@
 .insight {
   @include m.card;
   padding: 14px 16px;
-  border-left: 3px solid t.$green;
+  box-shadow: inset 3px 0 0 t.$green;
 
-  &.warn { border-left-color: t.$butter; }
+  &.warn { box-shadow: inset 3px 0 0 t.$butter; }
 }
 
-.insightTitle { font-size: 12.5px; line-height: 1.45; margin-bottom: 8px; }
+.insightTitle { font-size: 13px; line-height: 1.45; margin-bottom: 8px; }
 
 .insightBtn {
-  font-family: t.$mono;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: t.$green;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -246,8 +236,8 @@
 .facts {
   margin: 8px 0 0;
   padding: 8px 10px;
-  border-radius: 8px;
-  background: t.$sage-100;
+  border-radius: t.$radius-sm;
+  background: t.$sunken;
   font-family: t.$mono;
   font-size: 9.5px;
   line-height: 1.6;

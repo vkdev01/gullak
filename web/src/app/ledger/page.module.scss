@@ -18,7 +18,7 @@
   flex-wrap: wrap;
 }
 
-.title { font-size: 20px; }
+.title { font-size: 26px; }
 .sub { font-size: 12.5px; color: t.$dim; margin: 4px 0 0; }
 .actions { display: flex; gap: 8px; }
 
@@ -29,27 +29,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 16px 22px;
+  padding: 14px 20px;
   margin-bottom: 12px;
-  background: linear-gradient(100deg, #f7fbf8 0%, t.$card 60%);
   flex-wrap: wrap;
 }
 
 .periodMain { display: flex; flex-direction: column; gap: 2px; }
 
 .periodLabel {
-  font-family: t.$mono;
-  font-size: 9.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: t.$dim;
+  @include m.kicker;
 }
 
 .periodValue {
+  @include m.figure-lg;
   font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  font-variant-numeric: tabular-nums;
 }
 
 .periodSide {
@@ -76,7 +69,7 @@
   code {
     font-family: t.$mono;
     font-size: 11px;
-    background: t.$sage-100;
+    background: t.$sunken;
     padding: 1px 5px;
     border-radius: 4px;
   }

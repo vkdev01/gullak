@@ -1,7 +1,7 @@
 "use client";
 
 import Button from "@/components/ui/Button";
-import type { Account } from "@/lib/api";
+import { isDemoMode, type Account } from "@/lib/api";
 import type { LedgerFilters, LedgerView } from "@/hooks/useLedger";
 import s from "./ledger.module.scss";
 
@@ -69,9 +69,11 @@ export default function LedgerToolbar({
         ))}
       </div>
 
-      <Button variant="ghost" size="sm" onClick={onSeed} disabled={seeding}>
-        {seeding ? "Loading…" : "Load demo data"}
-      </Button>
+      {isDemoMode() && (
+        <Button variant="ghost" size="sm" onClick={onSeed} disabled={seeding}>
+          {seeding ? "Loading…" : "Load demo data"}
+        </Button>
+      )}
     </div>
   );
 }

@@ -7,19 +7,19 @@
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px;
 
   h2 { font-size: 15px; }
-  span { font-family: t.$mono; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: t.$dim; }
+  span { font-size: 12px; color: t.$dim; }
 }
 
 .bulk {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 10px 12px; border-radius: t.$radius-sm; background: t.$sage-100; margin-bottom: 12px;
+  padding: 8px 12px; border-radius: t.$radius-sm; background: t.$sunken; margin-bottom: 12px;
 }
 
 .list { display: flex; flex-direction: column; }
 
 .row {
   display: grid; grid-template-columns: 26px 1fr 120px 110px 96px;
-  gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid t.$line-soft;
+  gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid t.$line-soft;
 
   &:last-child { border-bottom: none; }
 
@@ -41,15 +41,15 @@
 .cat { @include m.mq(md) { display: none; } }
 
 .select {
-  border: 1px solid t.$line; border-radius: 99px; padding: 5px 10px;
+  border: 1px solid t.$line; border-radius: t.$radius-sm; padding: 5px 10px;
   font-size: 11.5px; background: t.$card; color: t.$ink; min-width: 170px;
 }
 
 .amount { text-align: right; @include m.figure; font-size: 13px; }
 
 .suggest {
-  font-family: t.$mono; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: t.$green; background: t.$green-soft; border-radius: 99px; padding: 2px 7px;
+  font-size: 11px;
+  color: t.$green; background: t.$green-soft; border-radius: 4px; padding: 1px 6px;
 }
 
 .empty { padding: 40px 20px; text-align: center; color: t.$dim; font-size: 13px; }

@@ -14,18 +14,10 @@ type Props = {
 
 const TINT: Record<string, string> = { green: s.cGreen, clay: s.cClay, butter: s.cButter };
 
-const SOURCE_LABEL: Record<string, string> = {
-  import: "imported from a statement",
-  seed: "demo data",
-  manual: "added by hand",
-  rule: "categorised by a rule",
-};
-
 export default function LedgerRow({ transaction, categories, onRecategorise, onOpen }: Props) {
   const [editing, setEditing] = useState(false);
   const incoming = transaction.direction === "credit";
   const category = categories.find((c) => c.id === transaction.category_id);
-  const parent = category?.parent_id ? categories.find((c) => c.id === category.parent_id) : null;
   const leaves = categories.filter((c) => c.parent_id);
   const tint = category ? TINT[category.colour] ?? s.cGreen : s.cNone;
 
@@ -51,9 +43,7 @@ export default function LedgerRow({ transaction, categories, onRecategorise, onO
           {transaction.merchant}
           {transaction.needs_review && <i className={s.flag} title="The importer was unsure about this one" />}
         </b>
-        <span title={transaction.note || parent?.name || SOURCE_LABEL[transaction.source]}>
-          {transaction.note || parent?.name || SOURCE_LABEL[transaction.source] || "no description"}
-        </span>
+        {transaction.note && <span title={transaction.note}>{transaction.note}</span>}
       </div>
 
       <div>

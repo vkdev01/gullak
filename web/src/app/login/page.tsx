@@ -30,13 +30,18 @@ export default function LoginPage() {
   return (
     <main className={s.wrap}>
       <section className={s.brand}>
-        <h1>A ledger detailed enough for an accountant.</h1>
-        <p>MVP 0 — accounts, categories and a ledger you can trust, before any agent touches it.</p>
-        <ul>
-          <li>Transactions with provenance and inline recategorisation</li>
-          <li>Every row scoped to your household</li>
-          <li>Quick add that understands “320 swiggy yesterday”</li>
-        </ul>
+        <div className={s.mark}>
+          <i>G</i> Gullak
+        </div>
+        <div>
+          <h1>A ledger detailed enough for an accountant.</h1>
+          <p>Accounts, statements and a plan you can check to the paisa, before any agent touches it.</p>
+          <ul>
+            <li>Statement import that never double-counts a row</li>
+            <li>Every figure opens to the transactions behind it</li>
+            <li>Quick add that understands “320 swiggy yesterday”</li>
+          </ul>
+        </div>
       </section>
 
       <section className={s.form}>
