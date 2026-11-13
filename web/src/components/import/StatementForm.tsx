@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Button from "@/components/ui/Button";
 import type { Account } from "@/lib/api";
 import s from "./import.module.scss";
@@ -22,21 +22,27 @@ const SAMPLE = `Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance
 08/11/2026,UPI/THIRD WAVE COFFEE/2210,320.00,,259192.50`;
 
 export default function StatementForm({ accounts, busy, onPreview }: Props) {
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
+  const [chosenAccount, setAccountId] = useState("");
+  // Accounts arrive after mount, so default to the first one rather than freezing an empty choice.
+  const accountId = chosenAccount || accounts[0]?.id || "";
   const [csv, setCsv] = useState("");
-  const [filename, setFilename] = useState("statement.csv");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [filename, setFilename] = useState("");
+  const [pasting, setPasting] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   async function pickFile(file: File) {
     setFilename(file.name);
     setCsv(await file.text());
+    setPasting(false);
   }
+
+  const rows = csv.trim() ? csv.trim().split(/\r?\n/).length - 1 : 0;
 
   return (
     <div className={s.panel}>
       <div className={s.head}>
-        <h2>1 · Choose the file</h2>
-        <span>CSV · nothing is imported yet</span>
+        <h2>1 · Choose the statement</h2>
+        <span>CSV only for now</span>
       </div>
 
       <div className={s.row}>
@@ -51,43 +57,82 @@ export default function StatementForm({ accounts, busy, onPreview }: Props) {
           </select>
         </div>
 
-        <div className={s.field}>
-          <label htmlFor="import-file">Statement file</label>
-          <input
-            id="import-file"
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void pickFile(file);
-            }}
-          />
-        </div>
-
-        <Button onClick={() => onPreview(accountId, csv, filename)} disabled={!csv.trim() || busy || !accountId}>
+        <Button
+          onClick={() => onPreview(accountId, csv, filename || "pasted.csv")}
+          disabled={!csv.trim() || busy || !accountId}
+        >
           {busy ? "Reading…" : "Preview import"}
         </Button>
       </div>
 
-      <div className={s.paste}>
-        <textarea
-          value={csv}
+      <label
+        className={`${s.drop} ${dragging ? s.dragging : ""} ${csv && !pasting ? s.loaded : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) void pickFile(file);
+        }}
+      >
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          aria-label="Statement file"
           onChange={(e) => {
-            setCsv(e.target.value);
-            setFilename("pasted.csv");
+            const file = e.target.files?.[0];
+            if (file) void pickFile(file);
           }}
-          placeholder="…or paste the CSV here"
-          spellCheck={false}
-          aria-label="Statement CSV"
         />
-      </div>
+        {csv && !pasting ? (
+          <>
+            <b>{filename}</b>
+            <span>{rows} rows read · drop another file to replace it</span>
+          </>
+        ) : (
+          <>
+            <b>Drop a CSV statement here, or click to choose one</b>
+            <span>HDFC, ICICI, SBI, Axis and Kotak layouts are detected automatically</span>
+          </>
+        )}
+      </label>
+
+      {pasting ? (
+        <div className={s.paste}>
+          <textarea
+            value={csv}
+            onChange={(e) => {
+              setCsv(e.target.value);
+              setFilename("pasted.csv");
+            }}
+            placeholder="Paste the CSV, header row first"
+            spellCheck={false}
+            aria-label="Statement CSV"
+            autoFocus
+          />
+        </div>
+      ) : (
+        <button type="button" className={s.pasteToggle} onClick={() => setPasting(true)}>
+          Paste CSV text instead
+        </button>
+      )}
 
       <p className={s.hint}>
-        HDFC, ICICI, SBI, Axis and Kotak column layouts are detected automatically; anything else can be mapped by
-        header name.{" "}
-        <button type="button" className={s.hint} style={{ textDecoration: "underline" }} onClick={() => setCsv(SAMPLE)}>
-          Load a sample
+        Other banks are mapped by header name.{" "}
+        <button
+          type="button"
+          className={s.linkBtn}
+          onClick={() => {
+            setCsv(SAMPLE);
+            setFilename("sample-hdfc.csv");
+            setPasting(false);
+          }}
+        >
+          Load a sample statement
         </button>
       </p>
     </div>
