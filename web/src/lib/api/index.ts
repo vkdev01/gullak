@@ -65,10 +65,14 @@ export const api = {
 
   categories: (): Promise<Category[]> => (isDemoMode() ? Promise.resolve(demo.categories()) : request("/categories")),
 
-  transactions: (params: Record<string, string | number> = {}): Promise<Txn[]> =>
+  transactions: (params: Record<string, string | number | boolean> = {}): Promise<Txn[]> =>
     isDemoMode()
       ? Promise.resolve(demo.transactions(params))
-      : request(`/transactions?${new URLSearchParams(params as Record<string, string>).toString()}`),
+      : request(
+          `/transactions?${new URLSearchParams(
+            Object.entries(params).map(([k, v]) => [k, String(v)]),
+          ).toString()}`,
+        ),
 
   createTransaction: (body: Record<string, unknown>): Promise<Txn> =>
     isDemoMode() ? Promise.resolve(demo.createTransaction(body)) : request("/transactions", { method: "POST", body: JSON.stringify(body) }),

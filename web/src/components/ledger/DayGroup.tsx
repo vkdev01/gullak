@@ -9,20 +9,34 @@ type Props = {
   date: string;
   transactions: Txn[];
   categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
   onRecategorise: (id: string, categoryId: string) => void;
 };
 
-export default function DayGroup({ date, transactions, categories, onRecategorise }: Props) {
+export default function DayGroup({ date, transactions, categories, selectedId, onSelect, onRecategorise }: Props) {
   const net = transactions.reduce((acc, t) => acc + (t.direction === "credit" ? t.amount : -t.amount), 0);
+  const count = transactions.length;
 
   return (
     <div className={s.day}>
       <div className={s.dayHead}>
         <b>{dayLabel(date)}</b>
-        <span>{money(net)}</span>
+        <em>
+          {count} {count === 1 ? "entry" : "entries"}
+        </em>
+        <span className={s.dayNet}>{money(net)}</span>
       </div>
+
       {transactions.map((t) => (
-        <LedgerRow key={t.id} transaction={t} categories={categories} onRecategorise={onRecategorise} />
+        <LedgerRow
+          key={t.id}
+          transaction={t}
+          categories={categories}
+          selected={selectedId === t.id}
+          onSelect={() => onSelect(t.id)}
+          onRecategorise={onRecategorise}
+        />
       ))}
     </div>
   );
