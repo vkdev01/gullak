@@ -42,6 +42,8 @@ def list_transactions(
     account_id: str | None = None,
     category_id: str | None = None,
     direction: str | None = None,
+    needs_review: bool | None = None,
+    uncategorised: bool | None = None,
     q: str | None = None,
     start: date | None = None,
     end: date | None = None,
@@ -59,6 +61,10 @@ def list_transactions(
         stmt = stmt.where(Transaction.category_id == category_id)
     if direction in ("debit", "credit"):
         stmt = stmt.where(Transaction.direction == direction)
+    if needs_review:
+        stmt = stmt.where(Transaction.needs_review.is_(True))
+    if uncategorised:
+        stmt = stmt.where(Transaction.category_id.is_(None))
     if q:
         stmt = stmt.where(Transaction.merchant.ilike(f"%{q}%"))
     if start:

@@ -2,33 +2,70 @@
 @use 'mixins' as m;
 
 .page {
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 26px 22px 90px;
 
   @include m.mq(md) { padding: 18px 14px 96px; }
 }
 
-.strip {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
   margin-bottom: 16px;
-
-  @include m.mq(md) {
-    grid-template-columns: 1fr 1fr;
-
-    > :first-child { grid-column: 1 / -1; }
-  }
+  flex-wrap: wrap;
 }
 
-.errorTitle {
-  font-size: 22px;
-  margin-bottom: 8px;
-  margin-top: 12vh;
+.title { font-size: 20px; }
+.sub { font-size: 12.5px; color: t.$dim; margin: 4px 0 0; }
+.actions { display: flex; gap: 8px; }
+
+/* the period band: one number big, three small, no three identical boxes */
+.period {
+  @include m.card;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 22px;
+  margin-bottom: 12px;
+  background: linear-gradient(100deg, #f7fbf8 0%, t.$card 60%);
+  flex-wrap: wrap;
 }
 
-.hint { margin-top: 12px; }
+.periodMain { display: flex; flex-direction: column; gap: 2px; }
+
+.periodLabel {
+  font-family: t.$mono;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: t.$dim;
+}
+
+.periodValue {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.periodSide {
+  display: flex;
+  gap: 28px;
+
+  div { display: flex; flex-direction: column; gap: 2px; }
+}
+
+.periodSmall {
+  font-family: t.$mono;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+
+  &.neg { color: t.$clay; }
+}
 
 .note {
   margin-top: 16px;
@@ -43,4 +80,9 @@
     padding: 1px 5px;
     border-radius: 4px;
   }
+}
+
+@include m.mq(md) {
+  .periodSide { gap: 18px; }
+  .periodValue { font-size: 24px; }
 }

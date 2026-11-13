@@ -29,6 +29,7 @@ export type Txn = {
   confidence?: number;
   needs_review?: boolean;
   dedupe_hash?: string;
+  created_at?: string;
   account_name?: string;
   category_name?: string;
 };

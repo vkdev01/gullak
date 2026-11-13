@@ -1,40 +1,40 @@
 @use 'tokens' as t;
 @use 'mixins' as m;
 
-/* ---------- capture bar ---------- */
+/* ================= capture ================= */
 .quick {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-bottom: 12px;
   @include m.card;
-  border-radius: 99px;
-  padding: 6px 6px 6px 14px;
+  border-radius: 14px;
+  padding: 6px 6px 6px 16px;
 
   input {
     flex: 1;
     border: 0;
     background: none;
     outline: none;
-    font-size: 14px;
+    font-size: 14.5px;
     min-width: 0;
 
     &::placeholder { color: t.$dim; }
   }
 }
 
-/* ---------- toolbar ---------- */
+/* ================= toolbar ================= */
 .toolbar {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .search {
   flex: 1;
-  min-width: 180px;
+  min-width: 200px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -64,72 +64,123 @@
   &:focus { border-color: t.$green; }
 }
 
-/* ---------- list ---------- */
+.segment {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 99px;
+  background: t.$sage-100;
+  border: 1px solid t.$line;
+
+  button {
+    border-radius: 99px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: t.$dim;
+    white-space: nowrap;
+
+    &:hover { color: t.$ink; }
+  }
+
+  .segOn {
+    background: t.$card;
+    color: t.$ink;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(23, 37, 31, 0.08);
+  }
+}
+
+/* ================= list ================= */
 .list {
   @include m.card;
-  padding: 6px 0 8px;
+  // `clip` keeps the rounded corners without creating a scroll container,
+  // which would make the sticky day headers position against the card instead
+  // of the viewport — and park them 58px below the first row.
+  overflow: clip;
+  padding: 0;
 }
 
-.day {
-  border-bottom: 1px solid t.$line-soft;
-
-  &:last-child { border-bottom: none; }
-}
+.day { border-bottom: 1px solid t.$line; &:last-child { border-bottom: none; } }
 
 .dayHead {
+  position: sticky;
+  top: 58px; /* clears the app bar */
+  z-index: 2;
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  padding: 11px 20px 7px;
+  gap: 10px;
+  padding: 9px 20px;
+  background: #f4f8f4;
+  border-bottom: 1px solid t.$line-soft;
 
   b {
     font-family: t.$mono;
     font-size: 10px;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: t.$dim;
+    color: t.$ink2;
     font-weight: 500;
   }
 
-  span {
-    @include m.figure;
-    font-size: 10px;
+  em {
+    font-style: normal;
+    font-size: 11px;
     color: t.$dim;
   }
 
-  @include m.mq(md) { padding: 10px 14px 6px; }
+  .dayNet {
+    margin-left: auto;
+    @include m.figure;
+    font-size: 11px;
+    color: t.$dim;
+  }
+
+  @include m.mq(md) { padding: 8px 14px; }
 }
 
-/* ---------- row ---------- */
+/* ================= row ================= */
 .row {
   display: grid;
-  grid-template-columns: 26px 1fr 118px 128px 96px;
-  gap: 12px;
+  grid-template-columns: 32px minmax(180px, 1.7fr) 156px 118px 104px;
+  gap: 14px;
   align-items: center;
-  padding: 9px 20px;
-  border-top: 1px solid t.$line-soft;
+  padding: 11px 20px;
+  border-bottom: 1px solid t.$line-soft;
+  background: t.$card;
+  transition: background 90ms;
 
+  &:last-child { border-bottom: none; }
   &:hover { background: #fbfdfa; }
 
+  &.sel {
+    background: #f2f8f4;
+    box-shadow: inset 2px 0 0 t.$green;
+  }
+
   @include m.mq(md) {
-    grid-template-columns: 26px 1fr 90px;
-    gap: 10px;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
     padding: 10px 14px;
+    gap: 10px;
   }
 }
 
-.monogram {
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  background: t.$green-soft;
-  color: t.$green;
+.tile {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
+
+/* category tints, driven by the category's own colour */
+.cGreen  { background: #e4efe9; color: #1f6f5c; }
+.cClay   { background: #f7e9e1; color: #a95f3c; }
+.cButter { background: #f8f0da; color: #8a6e22; }
+.cNone   { background: #eef0ec; color: #7c8785; }
 
 .main {
   min-width: 0;
@@ -138,26 +189,69 @@
     display: block;
     font-size: 13.5px;
     font-weight: 500;
+    letter-spacing: -0.01em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  span { font-size: 11px; color: t.$dim; }
+  span {
+    display: block;
+    font-family: t.$mono;
+    font-size: 10.5px;
+    color: t.$dim;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
 }
 
-.category {
-  @include m.mq(md) { display: none; }
+/* the category chip is a button until you click it */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  max-width: 150px;
 
-  select {
-    font-size: 11px;
-    border: 1px solid t.$line;
-    border-radius: 99px;
-    padding: 3px 8px;
-    background: t.$card;
-    color: t.$ink;
-    max-width: 118px;
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: none;
   }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover { border-color: rgba(23, 37, 31, 0.14); }
+
+  &.cGreen, &.cClay, &.cButter { border-color: transparent; }
+}
+
+.chipNone {
+  border-style: dashed;
+  border-color: rgba(23, 37, 31, 0.18);
+  color: t.$dim;
+  background: transparent;
+}
+
+.chipSelect {
+  font-size: 11px;
+  border: 1px solid t.$green;
+  border-radius: 99px;
+  padding: 3px 8px;
+  background: t.$card;
+  color: t.$ink;
+  max-width: 160px;
+  outline: none;
 }
 
 .account {
@@ -166,6 +260,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
 
   @include m.mq(md) { display: none; }
 }
@@ -173,9 +268,50 @@
 .amount {
   text-align: right;
   @include m.figure;
-  font-size: 13px;
+  font-size: 13.5px;
+  color: t.$ink;
+  white-space: nowrap;
 
   &.incoming { color: t.$green; }
 
   @include m.mq(md) { font-size: 12.5px; }
+}
+
+/* the "needs a look" marker, only on rows the importer was unsure about */
+.flag {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: t.$butter;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ================= footer ================= */
+.more {
+  display: flex;
+  justify-content: center;
+  padding: 14px;
+  border-top: 1px solid t.$line-soft;
+}
+
+.count {
+  padding: 10px 20px;
+  border-top: 1px solid t.$line-soft;
+  font-family: t.$mono;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: t.$dim;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ================= empty ================= */
+.empty {
+  padding: 52px 24px;
+  text-align: center;
+
+  h3 { font-size: 15px; margin-bottom: 6px; }
+  p { color: t.$dim; font-size: 13px; max-width: 44ch; margin: 0 auto 16px; }
 }

@@ -206,18 +206,27 @@ export const demo = {
   },
   categories: () => db().categories,
 
-  transactions: (params: Record<string, string | number> = {}) => {
+  transactions: (params: Record<string, string | number | boolean> = {}) => {
     const d = db();
     let rows = [...d.transactions];
     if (params.account_id) rows = rows.filter((t) => t.account_id === params.account_id);
     if (params.category_id) rows = rows.filter((t) => t.category_id === params.category_id);
     if (params.direction) rows = rows.filter((t) => t.direction === params.direction);
+    if (params.needs_review) rows = rows.filter((t) => t.needs_review);
+    if (params.uncategorised) rows = rows.filter((t) => !t.category_id);
     if (params.q) {
       const q = String(params.q).toLowerCase();
-      rows = rows.filter((t) => t.merchant.toLowerCase().includes(q));
+      rows = rows.filter(
+        (t) => t.merchant.toLowerCase().includes(q) || (t.note ?? "").toLowerCase().includes(q),
+      );
     }
-    rows.sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
-    return rows.slice(0, Number(params.limit ?? 200)).map(withNames);
+    rows.sort((a, b) => {
+      if (a.occurred_at !== b.occurred_at) return a.occurred_at < b.occurred_at ? 1 : -1;
+      return (b.created_at ?? "") > (a.created_at ?? "") ? 1 : -1;
+    });
+    const limit = Number(params.limit ?? 200);
+    const offset = Number(params.offset ?? 0);
+    return rows.slice(offset, offset + limit).map(withNames);
   },
 
   createTransaction: (body: Record<string, unknown>) => {
